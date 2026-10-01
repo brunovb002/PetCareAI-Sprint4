@@ -1,0 +1,92 @@
+# =========================================================
+# PetCareAI - CLYVO VET
+# Pipeline CI/CD (Azure DevOps) - versão mínima da Sprint 4
+# CI: restore + build + testes + publish + artefato
+# CD: deploy automático no Azure App Service após o CI
+# =========================================================
+
+trigger:
+  branches:
+    include:
+      - master
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  buildConfiguration: Release
+  solution: PetCareSprint3C.sln
+  apiProject: src/PetCareAI.Api/PetCareAI.Api.csproj
+  # Nome da service connection criada em Project Settings > Service connections
+  azureServiceConnection: sc-azure-petcareai
+  webAppName: app-petcareai-566366
+
+stages:
+  # ---------------------------------------------------------
+  # CI: build + testes automáticos + publicação do artefato
+  # ---------------------------------------------------------
+  - stage: CI
+    displayName: Build e testes
+    jobs:
+      - job: Build
+        displayName: Build, testes e publish
+        steps:
+          - task: UseDotNet@2
+            displayName: Instalar .NET 8 SDK
+            inputs:
+              packageType: sdk
+              version: 8.x
+
+          - script: dotnet restore $(solution)
+            displayName: Restore
+
+          - script: dotnet build $(solution) -c $(buildConfiguration) --no-restore
+            displayName: Build
+
+          - script: dotnet test $(solution) -c $(buildConfiguration) --no-build --logger trx --results-directory $(Agent.TempDirectory)/testresults
+            displayName: Testes automatizados (unitários e integração)
+
+          - task: PublishTestResults@2
+            displayName: Publicar resultados dos testes
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: VSTest
+              testResultsFiles: '$(Agent.TempDirectory)/testresults/**/*.trx'
+
+          - task: DotNetCoreCLI@2
+            displayName: Publish da API (Linux)
+            inputs:
+              command: publish
+              publishWebProjects: false
+              projects: $(apiProject)
+              arguments: '-c $(buildConfiguration) -r linux-x64 --self-contained false -o $(Build.ArtifactStagingDirectory)'
+              zipAfterPublish: true
+
+          - task: PublishBuildArtifacts@1
+            displayName: Publicar artefato no Azure DevOps
+            inputs:
+              PathtoPublish: $(Build.ArtifactStagingDirectory)
+              ArtifactName: drop
+
+  # ---------------------------------------------------------
+  # CD: deploy automático no App Service após novo artefato
+  # ---------------------------------------------------------
+  - stage: CD
+    displayName: Deploy no Azure
+    dependsOn: CI
+    condition: succeeded()
+    jobs:
+      - deployment: DeployWebApp
+        displayName: Deploy no App Service
+        environment: producao
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureWebApp@1
+                  displayName: Deploy no Azure App Service
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    appType: webAppLinux
+                    appName: $(webAppName)
+                    package: $(Pipeline.Workspace)/drop/*.zip
