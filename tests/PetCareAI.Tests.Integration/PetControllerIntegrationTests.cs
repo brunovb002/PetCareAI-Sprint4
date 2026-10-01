@@ -1,26 +1,30 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
 namespace PetCareAI.Tests.Integration
 {
-    public class PetControllerIntegrationTests : IClassFixture<WebApplicationFactory<PetCareAI.Api.Controllers.PetsController>>
+    public class PetControllerIntegrationTests : IClassFixture<CustomWebApplicationFactory>
     {
         private readonly HttpClient _client;
 
-        public PetControllerIntegrationTests(WebApplicationFactory<PetCareAI.Api.Controllers.PetsController> factory)
+        public PetControllerIntegrationTests(CustomWebApplicationFactory factory)
         {
             _client = factory.CreateClient();
         }
 
         [Fact]
-        public async Task Teste_HealthCheck_DeveExecutarSemFalhas()
+        public async Task GetHealth_ComApiEmExecucao_DeveRetornarOkEHealthy()
         {
+            // Arrange
+            var url = "/health";
+
             // Act
-            var response = await _client.GetAsync("/health");
+            var response = await _client.GetAsync(url);
+            var body = await response.Content.ReadAsStringAsync();
 
             // Assert
-            Assert.NotNull(response);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("Healthy", body);
         }
     }
 }
