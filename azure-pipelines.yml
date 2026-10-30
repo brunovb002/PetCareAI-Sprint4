@@ -15,7 +15,7 @@ pool:
 
 variables:
   buildConfiguration: Release
-  solution: PetCareSprint3C.sln
+  solution: PetCareAI.sln
   apiProject: src/PetCareAI.Api/PetCareAI.Api.csproj
   # Nome da service connection criada em Project Settings > Service connections
   azureServiceConnection: sc-azure-petcareai
