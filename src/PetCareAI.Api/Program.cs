@@ -1,78 +1,83 @@
-using Serilog;
+using HealthChecks.UI.Client;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using OpenTelemetry.Trace;
 using OpenTelemetry.Metrics;
-using PetCareAI.Infrastructure.Context;
-using PetCareAI.Domain.Interfaces;
-using PetCareAI.Application.Services;
-
+using OpenTelemetry.Trace;
+using PetCareAI.Api.Extensions;
+using PetCareAI.Api.Middleware;
+using PetCareAI.Application;
+using PetCareAI.Infrastructure;
+using PetCareAI.Infrastructure.Persistence;
+using Serilog;
+using Serilog.Formatting.Compact;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Configuração do Serilog (Logging Estruturado)
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)
+// 1. Logging estruturado (Serilog): console legível + arquivo em JSON
+builder.Host.UseSerilog((context, services, logger) => logger
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
     .Enrich.FromLogContext()
-    .Enrich.WithProperty("ApplicationName", "PetCareAI.Api")
+    .Enrich.WithProperty("Aplicacao", "PetCareAI.Api")
+    .Enrich.WithProperty("Ambiente", context.HostingEnvironment.EnvironmentName)
     .WriteTo.Console()
-    .WriteTo.File("logs/petcareai-.log", rollingInterval: RollingInterval.Day)
-    .CreateLogger();
+    .WriteTo.File(new CompactJsonFormatter(), "logs/petcareai-.json",
+        rollingInterval: RollingInterval.Day, retainedFileCountLimit: 7));
 
-builder.Host.UseSerilog();
+// 2. Camadas (Clean Architecture) via injeção de dependência
+builder.Services
+    .AddApplication()
+    .AddInfrastructure(builder.Configuration);
 
-// 2. Injeção de Dependências, Banco de Dados e Serviços
-// Banco em nuvem (Azure SQL) — a connection string vem do appsettings.json
-// localmente, e da configuração do App Service (az webapp config connection-string set)
-// quando publicado na Azure.
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// 3. Segurança, API e documentação
+builder.Services.AddJwtAuthentication();
+builder.Services.AddControllers();
+builder.Services.AddSwaggerDocumentation();
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
-builder.Services.AddScoped<IPetRepository, PetRepository>();
-builder.Services.AddScoped<PetService>();
-builder.Services.AddScoped<IConsultaRepository, ConsultaRepository>();
-builder.Services.AddScoped<ConsultaService>();
+// O App Service termina o HTTPS no proxy; isso garante links HATEOAS com https://
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
-// 3. Configuração do Health Check
+// 4. Health checks: /health/live (a API está de pé) e /health (inclui bancos SQL e MongoDB)
 builder.Services.AddHealthChecks()
-    .AddCheck("Self", () => HealthCheckResult.Healthy("API PetCareAI operacional."))
-    .AddDbContextCheck<AppDbContext>("Database");
+    .AddCheck("api", () => HealthCheckResult.Healthy("API PetCareAI operacional."), tags: ["live"])
+    .AddInfrastructureHealthChecks(builder.Configuration);
 
-// 4. Configuração do OpenTelemetry (Tracing e Métricas)
+// 5. Observabilidade (OpenTelemetry): métricas em /metrics e tracing
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracing =>
     {
         tracing
             .AddSource("PetCareAI.Api")
             .AddAspNetCoreInstrumentation()
-            .AddHttpClientInstrumentation()
-            .AddConsoleExporter();
+            .AddHttpClientInstrumentation();
+        if (builder.Environment.IsDevelopment())
+            tracing.AddConsoleExporter();
     })
-    .WithMetrics(metrics =>
-    {
-        metrics
-            .AddAspNetCoreInstrumentation()
-            .AddHttpClientInstrumentation()
-            .AddRuntimeInstrumentation()
-            .AddPrometheusExporter();
-    });
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddPrometheusExporter());
 
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-// --- CRIAÇÃO DA APLICAÇÃO ---
 var app = builder.Build();
 
-// 5. Configuração do Pipeline HTTP (Sempre após o app = builder.Build())
+app.UseForwardedHeaders();
+app.UseExceptionHandler();
 app.UseSerilogRequestLogging();
 
-// Swagger habilitado sempre (inclusive em Production/App Service), pois a
-// entrega de DevOps exige demonstrar os endpoints via vídeo contra o app publicado.
+// Swagger habilitado também em produção: a entrega exige demonstrar os endpoints no app publicado
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(c => c.DocumentTitle = "PetCareAI API - CLYVO VET");
 
-// Aplica migrations pendentes automaticamente ao iniciar (não em Testing)
 if (!app.Environment.IsEnvironment("Testing"))
 {
     using var scope = app.Services.CreateScope();
@@ -83,18 +88,25 @@ if (!app.Environment.IsEnvironment("Testing"))
     }
     catch (Exception ex)
     {
-        Log.Fatal(ex,
-            "Falha ao aplicar migrations. Rode 'dotnet ef migrations add InitialCreate' " +
-            "na pasta do projeto antes de iniciar a API, e confira a ConnectionString " +
-            "em appsettings.json.");
+        Log.Fatal(ex, "Falha ao aplicar as migrations. Confira a connection string 'DefaultConnection'.");
         throw;
     }
 }
 
-// Endpoint do Health Check registrado corretamente no pipeline
-app.MapHealthChecks("/health");
-
+app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("live"),
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+app.MapPrometheusScrapingEndpoint("/metrics");
 app.MapControllers();
 
 app.Run();
