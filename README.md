@@ -25,10 +25,10 @@ API RESTful em **ASP.NET Core 8** para clínicas veterinárias e tutores: cadast
 O **PetCareAI** centraliza o histórico de saúde dos pets de uma clínica veterinária:
 
 - **Tutores e veterinários** se cadastram e fazem login (JWT).
-- **Pets** são cadastrados vinculados ao tutor logado.
+- **Pets** são cadastrados vinculados ao tutor logado. Só o tutor do pet (ou um veterinário) pode alterar, remover ou avaliar o pet.
 - **Consultas** são agendadas para um pet, com veterinário, motivo e diagnóstico.
 - Cada criação, alteração ou remoção gera um registro no **histórico de atividades** (auditoria), guardado no MongoDB.
-- O tutor relata os sintomas do pet e a **CLYVO AI** indica a prioridade de cuidado (**Alta**, **Média** ou **Baixa**) com uma recomendação.
+- O tutor relata os sintomas do pet e a **CLYVO AI** indica a prioridade de cuidado (**Alta**, **Média** ou **Baixa**), explica os fatores que pesaram e dá uma recomendação. Cada avaliação fica guardada, formando o **histórico de saúde** do pet.
 
 **Benefício para o negócio:** sem fichas de papel ou planilhas soltas, qualquer atendimento consulta o histórico completo do animal em segundos, e a clínica sabe quem alterou cada informação e quando. Com a avaliação da IA, o tutor sabe quando procurar atendimento antes de o problema se agravar, e a clínica recebe primeiro os casos mais urgentes.
 
@@ -83,7 +83,7 @@ flowchart LR
 **Princípios aplicados:**
 - **SOLID**: serviços com interface (`IPetService`…) e uma responsabilidade cada; repositórios atrás de interfaces (D); entidades fechadas para alteração direta, com setters privados e métodos como `Atualizar()`.
 - **Injeção de dependência**: cada camada expõe seu registro (`AddApplication()`, `AddInfrastructure()`), e o `Program.cs` só compõe.
-- **Tratamento global de exceções**: `GlobalExceptionHandler` (`IExceptionHandler`) converte exceções em respostas `application/problem+json` (RFC 7807): `DomainException` → 400, `NotFoundException` → 404, `ConflictException` → 409, credenciais inválidas → 401, IA fora do ar → 503, qualquer outra → 500 sem expor detalhes internos. Os controllers não têm `try/catch`.
+- **Tratamento global de exceções**: `GlobalExceptionHandler` (`IExceptionHandler`) converte exceções em respostas `application/problem+json` (RFC 7807): `DomainException` → 400, `NotFoundException` → 404, `ConflictException` → 409, credenciais inválidas → 401, `AcessoNegadoException` → 403, IA fora do ar → 503, qualquer outra → 500 sem expor detalhes internos. Os controllers não têm `try/catch`.
 
 ---
 
@@ -103,6 +103,8 @@ flowchart LR
 
 Todos os endpoints, exceto `registrar`, `login` e os de health, exigem o header `Authorization: Bearer <token>`.
 
+**Autorização por perfil e por dono:** qualquer usuário logado pode consultar pets e consultas, mas só o **tutor dono do pet** ou um usuário com perfil **Veterinario** pode alterar ou remover o pet, agendar, alterar ou remover as consultas dele, e avaliar ou ver o histórico de avaliações. Fora disso a API responde **403 Forbidden**.
+
 ### Autenticação
 | Método | Rota | Descrição |
 |---|---|---|
@@ -120,6 +122,7 @@ Todos os endpoints, exceto `registrar`, `login` e os de health, exigem o header 
 | DELETE | `/api/pets/{id}` | Remove (e as consultas do pet) |
 | GET | `/api/pets/{id}/consultas` | Consultas do pet (paginado) |
 | POST | `/api/pets/{id}/avaliacao-risco` | **CLYVO AI**: prioridade de cuidado a partir dos sintomas (ver abaixo) |
+| GET | `/api/pets/{id}/avaliacoes` | Histórico de avaliações da IA, da mais recente para a mais antiga (paginado) |
 
 ### Consultas
 | Método | Rota | Descrição |
@@ -156,7 +159,9 @@ Todos os endpoints, exceto `registrar`, `login` e os de health, exigem o header 
         { "href": "https://.../api/pets/2", "rel": "self", "metodo": "GET" },
         { "href": "https://.../api/pets/2", "rel": "atualizar", "metodo": "PUT" },
         { "href": "https://.../api/pets/2", "rel": "remover", "metodo": "DELETE" },
-        { "href": "https://.../api/pets/2/consultas", "rel": "consultas", "metodo": "GET" }
+        { "href": "https://.../api/pets/2/consultas", "rel": "consultas", "metodo": "GET" },
+        { "href": "https://.../api/pets/2/avaliacao-risco", "rel": "avaliacao-risco", "metodo": "POST" },
+        { "href": "https://.../api/pets/2/avaliacoes", "rel": "avaliacoes", "metodo": "GET" }
       ]
     }
   ],
@@ -188,8 +193,10 @@ sequenceDiagram
     A->>A: traduz para o formato do modelo (Cachorro→Dog, febre→Fever)
     A->>C: POST /predict
     C-->>A: priority "high" + probabilidades
-    A->>M: registra a avaliação no histórico
-    A-->>T: prioridade "Alta" + recomendação + links
+    A->>A: monta os fatores e a recomendação personalizada
+    A->>S: guarda a avaliação (histórico de saúde do pet)
+    A->>M: registra a operação na auditoria
+    A-->>T: prioridade "Alta" + fatores + recomendação + links
 ```
 
 **Requisição:**
@@ -208,14 +215,27 @@ sequenceDiagram
 ```json
 {
   "dados": {
+    "id": 12,
     "petId": 5,
     "prioridade": "Alta",
-    "confianca": 0.88,
+    "confianca": 0.93,
     "recomendacao": "Procure atendimento veterinário o quanto antes.",
+    "fatores": [
+      "Sinal grave: dificuldade para respirar",
+      "Sinal moderado: febre",
+      "Sinal moderado: fraqueza",
+      "Pet sênior: 11 anos",
+      "Histórico: doença crônica"
+    ],
+    "historicoMedico": "DoencaCronica",
+    "sintomas": ["dificuldade para respirar", "febre", "fraqueza"],
     "sintomasNaoReconhecidos": [],
     "avaliadoEm": "2026-11-04T13:00:00Z"
   },
-  "links": [ { "href": "https://.../api/pets/5", "rel": "pet", "metodo": "GET" } ]
+  "links": [
+    { "href": "https://.../api/pets/5", "rel": "pet", "metodo": "GET" },
+    { "href": "https://.../api/pets/5/avaliacoes", "rel": "historico", "metodo": "GET" }
+  ]
 }
 ```
 
@@ -225,23 +245,34 @@ sequenceDiagram
 - O modelo só conhece **cães e gatos**. Para outras espécies a API responde 400.
 - Se o serviço de IA estiver fora do ar, a API responde **503** e o resto do sistema continua funcionando.
 
-**Resultados com o modelo real** (chamadas da API ao serviço Flask):
+**Recomendação personalizada:** além da prioridade, a API explica **o que pesou** na avaliação (sinais graves e moderados, idade sênior a partir de 8 anos, histórico de risco), usando a mesma escala de gravidade do treino do modelo, e ajusta a recomendação:
+- **Alerta de segurança:** se houver um sinal grave (ex.: convulsão, falta de ar) e o modelo não indicar prioridade alta, a recomendação inclui um alerta para procurar o veterinário caso o quadro piore. Um sinal grave nunca passa sem aviso.
+- Pet **não vacinado** recebe a orientação de colocar a vacinação em dia.
 
-| Pet | Sintomas | Prioridade |
-|---|---|---|
-| Cachorro Labrador, 11 anos, doença crônica | dificuldade para respirar, fraqueza, febre, letargia, dor | **Alta** (88%) |
-| Gato Persa, 9 anos, doença renal prévia | perda de apetite, perda de peso, fraqueza | **Média** (65%) |
-| Gato Siamês, 2 anos, sem condições prévias | espirros | **Baixa** (100%) |
+**Histórico de saúde:** cada avaliação é guardada no Azure SQL (tabela `AvaliacoesRisco`) e consultada em `GET /api/pets/{id}/avaliacoes`. Assim o tutor e o veterinário acompanham a evolução do pet, por exemplo Alta → Média → Baixa ao longo do tratamento.
 
-**Limitação conhecida:** o modelo considera sempre 5 sintomas. Quando o tutor informa menos, os que faltam contam como leves, então relatos curtos tendem a sair com prioridade menor. Um próximo passo é retreinar o modelo considerando a quantidade de sintomas informados.
+**Resultados com o modelo real** (serviço de avaliação da API chamando o Flask, modelo retreinado na Sprint 4):
+
+| Pet | Sintomas | Prioridade | Destaque da resposta |
+|---|---|---|---|
+| Cachorro Labrador, 11 anos, doença crônica | dificuldade para respirar, fraqueza, febre, letargia, dor | **Alta** (93%) | 7 fatores, incluindo sinal grave e pet sênior |
+| Gato Persa, 9 anos, doença renal prévia | perda de apetite, perda de peso, fraqueza | **Média** (57%) | "Histórico: doença renal prévia" |
+| Cachorro SRD, 6 anos, não vacinado | vômito, diarreia | **Baixa** (83%) | orienta colocar a vacinação em dia |
+| Cachorro Poodle, 4 anos, vacinado | convulsão | **Baixa** (77%) | **alerta de segurança** pelo sinal grave |
+| Gato Siamês, 2 anos, sem condições prévias | espirros | **Baixa** (100%) | sem fatores de risco |
+
+**Limitações conhecidas:**
+- O modelo considera sempre 5 sintomas; quando o tutor informa menos, os que faltam contam como leves, e relatos curtos tendem a sair com prioridade menor (caso do Poodle acima). Por isso existe o alerta de segurança.
+- O rótulo de prioridade do dataset foi **derivado por regras** (gravidade dos sintomas + histórico + idade), não rotulado por veterinários. A acurácia mede o quanto o modelo reproduz esse critério, não acerto clínico. A IA é uma **triagem de apoio** e não substitui o veterinário.
 
 ---
 
 ## 💾 Persistência
 
-**Relacional (Azure SQL / SQL Server via EF Core):** tabelas `Pets`, `Consultas` (FK com *cascade delete*) e `Usuarios` (e-mail único). As migrations ficam em `src/PetCareAI.Infrastructure/Persistence/Migrations` e são aplicadas automaticamente quando a API inicia:
+**Relacional (Azure SQL / SQL Server via EF Core):** tabelas `Pets`, `Consultas` (FK com *cascade delete*), `Usuarios` (e-mail único) e `AvaliacoesRisco` (avaliações da IA, ligadas ao pet). As migrations ficam em `src/PetCareAI.Infrastructure/Persistence/Migrations` e são aplicadas automaticamente quando a API inicia:
 - `InitialCreate`: Pets e Consultas
 - `Sprint4_UsuariosEValidacoes`: tabela Usuarios, limites de tamanho das colunas e índices
+- `Sprint4_AvaliacoesRisco`: histórico de avaliações da CLYVO AI
 
 **NoSQL (MongoDB):** coleção `atividades` com um documento por operação (`entidade`, `entidadeId`, `acao`, `usuarioId`, `descricao`, `dataHora`). Foi escolhido NoSQL porque é um log de esquema flexível, só de inserção e sem relacionamentos. Se o MongoDB ficar fora do ar, a operação principal no SQL **não falha**: o erro vai para o log.
 
@@ -297,12 +328,12 @@ Abra o endereço que aparecer no terminal + `/swagger`. Fluxo no Swagger:
 
 ## 🧪 Testes
 
-São 100 testes (xUnit, todos no padrão **Arrange / Act / Assert**):
+São 118 testes (xUnit, todos no padrão **Arrange / Act / Assert**):
 
 | Projeto | O que cobre |
 |---|---|
-| `tests/PetCareAI.Tests.Unit` (75) | **Domínio**: validações de `Pet`, `Consulta`, `Usuario`, paginação. **Aplicação**: `PetService`, `ConsultaService`, `AuthService`, `AtividadeService`, `AvaliacaoRiscoService` e a tradução para a IA, com Moq |
-| `tests/PetCareAI.Tests.Integration` (25) | API real em memória (`WebApplicationFactory` + EF InMemory + Mongo e IA fakes): CRUD completo de pets e consultas, avaliação de risco, JWT (401 sem token, login inválido), paginação/filtros/ordenação, links HATEOAS, ProblemDetails 400/404/409, health checks e Swagger |
+| `tests/PetCareAI.Tests.Unit` (88) | **Domínio**: validações de `Pet`, `Consulta`, `Usuario`, paginação. **Aplicação**: `PetService`, `ConsultaService`, `AuthService`, `AtividadeService`, `AvaliacaoRiscoService` (fatores, alerta de segurança, histórico), autorização por dono/perfil e a tradução para a IA, com Moq |
+| `tests/PetCareAI.Tests.Integration` (30) | API real em memória (`WebApplicationFactory` + EF InMemory + Mongo e IA fakes): CRUD completo de pets e consultas, avaliação de risco e histórico, JWT (401 sem token, login inválido), autorização (403 para outro tutor, acesso do veterinário), paginação/filtros/ordenação, links HATEOAS, ProblemDetails 400/404/409, health checks e Swagger |
 
 ```bash
 dotnet test PetCareAI.sln
