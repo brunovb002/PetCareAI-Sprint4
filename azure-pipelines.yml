@@ -1,92 +1,144 @@
-# =========================================================
-# PetCareAI - CLYVO VET
-# Pipeline CI/CD (Azure DevOps) - versão mínima da Sprint 4
-# CI: restore + build + testes + publish + artefato
-# CD: deploy automático no Azure App Service após o CI
-# =========================================================
-
 trigger:
   branches:
     include:
       - master
 
-pool:
-  vmImage: ubuntu-latest
-
 variables:
-  buildConfiguration: Release
-  solution: PetCareAI.sln
-  apiProject: src/PetCareAI.Api/PetCareAI.Api.csproj
-  # Nome da service connection criada em Project Settings > Service connections
-  azureServiceConnection: sc-azure-petcareai
-  webAppName: app-petcareai-566366
+  buildConfiguration: 'Release'
+  azureSubscription: 'MyAzureSubscription'
+  apiProject: 'src/PetCareAI.Api/PetCareAI.Api.csproj'
+  artifactName: 'app'
+  webAppName: 'app-petcareai-566366'
+  sqlServer: 'sql-petcareai-566366v2'
+  sqlDatabase: 'petcareaidb'
+  clyvoAiUrl: 'https://clyvo-ai-566366.azurewebsites.net'
+  # Secretas, cadastradas em Pipelines > Edit > Variables (com o cadeado):
+  # SQL_ADMIN_USER, SQL_ADMIN_PASSWORD e JWT_KEY
 
 stages:
-  # ---------------------------------------------------------
-  # CI: build + testes automáticos + publicação do artefato
-  # ---------------------------------------------------------
-  - stage: CI
-    displayName: Build e testes
-    jobs:
-      - job: Build
-        displayName: Build, testes e publish
-        steps:
-          - task: UseDotNet@2
-            displayName: Instalar .NET 8 SDK
-            inputs:
-              packageType: sdk
-              version: 8.x
 
-          - script: dotnet restore $(solution)
-            displayName: Restore
+# =========================================================
+# 1. CRIAR INFRAESTRUTURA
+# =========================================================
+- stage: Infraestrutura
+  displayName: 'Criar infraestrutura'
+  jobs:
+    - job: CriarInfra
+      displayName: 'Provisionar recursos Azure'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - task: AzureCLI@2
+          displayName: 'Executar script de infraestrutura'
+          inputs:
+            azureSubscription: '$(azureSubscription)'
+            scriptType: 'bash'
+            scriptLocation: 'scriptPath'
+            scriptPath: 'scripts/infra-app.sh'
+            arguments: '"$(webAppName)" "$(sqlServer)" "$(sqlDatabase)" "$(SQL_ADMIN_USER)" "$(SQL_ADMIN_PASSWORD)"'
 
-          - script: dotnet build $(solution) -c $(buildConfiguration) --no-restore
-            displayName: Build
+# =========================================================
+# 2. BUILD, TESTES E PUBLICAÇÃO DO ARTEFATO (CI)
+# =========================================================
+- stage: BuildTestes
+  displayName: 'Build e testes'
+  dependsOn: Infraestrutura
+  jobs:
+    - job: BuildTest
+      displayName: 'Compilar e testar API'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - task: UseDotNet@2
+          displayName: 'Instalar .NET 8'
+          inputs:
+            packageType: 'sdk'
+            version: '8.x'
 
-          - script: dotnet test $(solution) -c $(buildConfiguration) --no-build --logger trx --results-directory $(Agent.TempDirectory)/testresults
-            displayName: Testes automatizados (unitários e integração)
+        - task: DotNetCoreCLI@2
+          displayName: 'Restaurar dependências'
+          inputs:
+            command: 'restore'
+            projects: 'PetCareAI.sln'
 
-          - task: PublishTestResults@2
-            displayName: Publicar resultados dos testes
-            condition: succeededOrFailed()
-            inputs:
-              testResultsFormat: VSTest
-              testResultsFiles: '$(Agent.TempDirectory)/testresults/**/*.trx'
+        - task: DotNetCoreCLI@2
+          displayName: 'Build da solução'
+          inputs:
+            command: 'build'
+            projects: 'PetCareAI.sln'
+            arguments: '--configuration $(buildConfiguration) --no-restore'
 
-          - task: DotNetCoreCLI@2
-            displayName: Publish da API (Linux)
-            inputs:
-              command: publish
-              publishWebProjects: false
-              projects: $(apiProject)
-              arguments: '-c $(buildConfiguration) -r linux-x64 --self-contained false -o $(Build.ArtifactStagingDirectory)'
-              zipAfterPublish: true
+        - task: DotNetCoreCLI@2
+          displayName: 'Testes unitários e de integração'
+          inputs:
+            command: 'test'
+            projects: 'tests/**/*.csproj'
+            arguments: '--configuration $(buildConfiguration) --no-build'
+            testRunTitle: 'Testes PetCareAI'
 
-          - task: PublishBuildArtifacts@1
-            displayName: Publicar artefato no Azure DevOps
-            inputs:
-              PathtoPublish: $(Build.ArtifactStagingDirectory)
-              ArtifactName: drop
+        - task: DotNetCoreCLI@2
+          displayName: 'Publicar API'
+          inputs:
+            command: 'publish'
+            publishWebProjects: false
+            projects: '$(apiProject)'
+            arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+            zipAfterPublish: true
 
-  # ---------------------------------------------------------
-  # CD: deploy automático no App Service após novo artefato
-  # ---------------------------------------------------------
-  - stage: CD
-    displayName: Deploy no Azure
-    dependsOn: CI
-    condition: succeeded()
-    jobs:
-      - deployment: DeployWebApp
-        displayName: Deploy no App Service
-        environment: producao
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-                - task: AzureWebApp@1
-                  displayName: Deploy no Azure App Service
-                  inputs:
-                    azureSubscription: $(azureServiceConnection)
-                    appType: webAppLinux
-                    appName: $(webAppName)
-                    package: $(Pipeline.Workspace)/drop/*.zip
+        - task: PublishPipelineArtifact@1
+          displayName: 'Publicar artefato'
+          inputs:
+            targetPath: '$(Build.ArtifactStagingDirectory)'
+            artifact: '$(artifactName)'
+            publishLocation: 'pipeline'
+
+# =========================================================
+# 3. DEPLOY NO AZURE APP SERVICE (CD)
+# =========================================================
+- stage: Deploy
+  displayName: 'Deploy no Azure App Service'
+  dependsOn: BuildTestes
+  jobs:
+    - job: DeployWebApp
+      displayName: 'Implantar API'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - checkout: none
+
+        - task: DownloadPipelineArtifact@2
+          displayName: 'Baixar artefato'
+          inputs:
+            buildType: 'current'
+            artifactName: '$(artifactName)'
+            targetPath: '$(Pipeline.Workspace)/$(artifactName)'
+
+        - task: AzureAppServiceSettings@1
+          displayName: 'Configurar variáveis do App Service'
+          inputs:
+            azureSubscription: '$(azureSubscription)'
+            appName: '$(webAppName)'
+            appSettings: |
+              [
+                { "name": "ASPNETCORE_ENVIRONMENT", "value": "Production", "slotSetting": false },
+                { "name": "Jwt__Key", "value": "$(JWT_KEY)", "slotSetting": false },
+                { "name": "ClyvoAi__Url", "value": "$(clyvoAiUrl)", "slotSetting": false }
+              ]
+            connectionStrings: |
+              [
+                {
+                  "name": "DefaultConnection",
+                  "value": "Server=tcp:$(sqlServer).database.windows.net,1433;Database=$(sqlDatabase);User ID=$(SQL_ADMIN_USER);Password=$(SQL_ADMIN_PASSWORD);Encrypt=true;",
+                  "type": "SQLAzure",
+                  "slotSetting": false
+                }
+              ]
+
+        - task: AzureWebApp@1
+          displayName: 'Deploy da API'
+          inputs:
+            azureSubscription: '$(azureSubscription)'
+            appType: 'webAppLinux'
+            appName: '$(webAppName)'
+            package: '$(Pipeline.Workspace)/$(artifactName)/*.zip'
+            deploymentMethod: 'zipDeploy'
