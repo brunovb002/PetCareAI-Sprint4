@@ -34,6 +34,28 @@ public class ConsultaConfiguration : IEntityTypeConfiguration<Consulta>
     }
 }
 
+public class AvaliacaoRiscoConfiguration : IEntityTypeConfiguration<AvaliacaoRisco>
+{
+    public void Configure(EntityTypeBuilder<AvaliacaoRisco> builder)
+    {
+        builder.ToTable("AvaliacoesRisco");
+        builder.HasKey(a => a.Id);
+        builder.Property(a => a.Prioridade).HasMaxLength(10).IsRequired();
+        builder.Property(a => a.HistoricoMedico).HasMaxLength(40).IsRequired();
+        builder.Property(a => a.Sintomas).HasMaxLength(1000).IsRequired();
+        builder.Property(a => a.Fatores).HasMaxLength(1000).IsRequired();
+        builder.Property(a => a.Recomendacao).HasMaxLength(600).IsRequired();
+        builder.Ignore(a => a.ListaDeSintomas);
+        builder.Ignore(a => a.ListaDeFatores);
+        builder.HasIndex(a => new { a.PetId, a.AvaliadoEm });
+
+        builder.HasOne(a => a.Pet)
+            .WithMany()
+            .HasForeignKey(a => a.PetId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
 {
     public void Configure(EntityTypeBuilder<Usuario> builder)

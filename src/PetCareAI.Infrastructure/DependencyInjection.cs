@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<IPetRepository, PetRepository>();
         services.AddScoped<IConsultaRepository, ConsultaRepository>();
         services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+        services.AddScoped<IAvaliacaoRiscoRepository, AvaliacaoRiscoRepository>();
 
         // NoSQL (MongoDB) para o histórico de atividades
         var mongo = configuration.GetSection(MongoDbSettings.Secao).Get<MongoDbSettings>() ?? new MongoDbSettings();

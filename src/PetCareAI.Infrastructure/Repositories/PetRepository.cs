@@ -25,9 +25,6 @@ public class PetRepository : IPetRepository
     public Task<Pet?> ObterPorIdAsync(int id, CancellationToken ct = default) =>
         _context.Pets.FirstOrDefaultAsync(p => p.Id == id, ct);
 
-    public Task<bool> ExisteAsync(int id, CancellationToken ct = default) =>
-        _context.Pets.AnyAsync(p => p.Id == id, ct);
-
     public Task<PagedResult<Pet>> ListarAsync(PetFiltro filtro, CancellationToken ct = default)
     {
         var query = _context.Pets.AsNoTracking();

@@ -22,6 +22,58 @@ namespace PetCareAI.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("PetCareAI.Domain.Entities.AvaliacaoRisco", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AvaliadoEm")
+                        .HasColumnType("datetime2");
+
+                    b.Property<double>("Confianca")
+                        .HasColumnType("float");
+
+                    b.Property<string>("Fatores")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("HistoricoMedico")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<int>("PetId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Prioridade")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Recomendacao")
+                        .IsRequired()
+                        .HasMaxLength(600)
+                        .HasColumnType("nvarchar(600)");
+
+                    b.Property<string>("Sintomas")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("UsuarioId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PetId", "AvaliadoEm");
+
+                    b.ToTable("AvaliacoesRisco", (string)null);
+                });
+
             modelBuilder.Entity("PetCareAI.Domain.Entities.Consulta", b =>
                 {
                     b.Property<int>("Id")
@@ -134,6 +186,17 @@ namespace PetCareAI.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Usuarios", (string)null);
+                });
+
+            modelBuilder.Entity("PetCareAI.Domain.Entities.AvaliacaoRisco", b =>
+                {
+                    b.HasOne("PetCareAI.Domain.Entities.Pet", "Pet")
+                        .WithMany()
+                        .HasForeignKey("PetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Pet");
                 });
 
             modelBuilder.Entity("PetCareAI.Domain.Entities.Consulta", b =>

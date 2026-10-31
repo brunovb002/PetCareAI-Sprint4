@@ -32,6 +32,7 @@ public class AvaliacaoRiscoRequestDto
 
 public class AvaliacaoRiscoResponseDto
 {
+    public int Id { get; set; }
     public int PetId { get; set; }
 
     /// <summary>Alta, Media ou Baixa.</summary>
@@ -41,6 +42,12 @@ public class AvaliacaoRiscoResponseDto
     public double Confianca { get; set; }
 
     public string Recomendacao { get; set; } = string.Empty;
+
+    /// <summary>O que pesou na avaliação (sinais graves ou moderados, idade, histórico de risco).</summary>
+    public List<string> Fatores { get; set; } = [];
+
+    public string HistoricoMedico { get; set; } = string.Empty;
+    public List<string> Sintomas { get; set; } = [];
 
     /// <summary>Sintomas que não estão no dicionário e foram enviados ao modelo como digitados (contam como leves).</summary>
     public List<string> SintomasNaoReconhecidos { get; set; } = [];

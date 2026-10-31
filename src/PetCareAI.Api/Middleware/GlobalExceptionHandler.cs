@@ -29,6 +29,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             ConflictException => (StatusCodes.Status409Conflict, "Conflito"),
             CredenciaisInvalidasException => (StatusCodes.Status401Unauthorized, "Não autorizado"),
             UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "Não autorizado"),
+            AcessoNegadoException => (StatusCodes.Status403Forbidden, "Acesso negado"),
             ServicoIndisponivelException => (StatusCodes.Status503ServiceUnavailable, "Serviço indisponível"),
             _ => (StatusCodes.Status500InternalServerError, "Erro interno no servidor")
         };

@@ -33,7 +33,7 @@ public class PetsControllerTests : IClassFixture<CustomWebApplicationFactory>
         criar.Headers.Location.Should().NotBeNull();
         var criado = await criar.Content.ReadFromJsonAsync<JsonElement>();
         var id = criado.GetProperty("dados").GetProperty("id").GetInt32();
-        Rels(criado.GetProperty("links")).Should().BeEquivalentTo("self", "atualizar", "remover", "consultas", "avaliacao-risco");
+        Rels(criado.GetProperty("links")).Should().BeEquivalentTo("self", "atualizar", "remover", "consultas", "avaliacao-risco", "avaliacoes");
 
         // READ
         var lido = await client.GetFromJsonAsync<JsonElement>($"/api/pets/{id}");
@@ -51,6 +51,42 @@ public class PetsControllerTests : IClassFixture<CustomWebApplicationFactory>
 
         var depois = await client.GetAsync($"/api/pets/{id}");
         depois.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task AtualizarERemover_PetDeOutroTutor_DevemRetornar403()
+    {
+        // Arrange
+        var dono = await _factory.CriarClienteAutenticadoAsync();
+        var outroTutor = await _factory.CriarClienteAutenticadoAsync();
+        var criado = await (await dono.PostAsJsonAsync("/api/pets", NovoPet("Bob"))).Content.ReadFromJsonAsync<JsonElement>();
+        var id = criado.GetProperty("dados").GetProperty("id").GetInt32();
+
+        // Act
+        var atualizar = await outroTutor.PutAsJsonAsync($"/api/pets/{id}", NovoPet("Invadido"));
+        var remover = await outroTutor.DeleteAsync($"/api/pets/{id}");
+
+        // Assert
+        atualizar.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        remover.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await dono.GetFromJsonAsync<JsonElement>($"/api/pets/{id}"))
+            .GetProperty("dados").GetProperty("nome").GetString().Should().Be("Bob");
+    }
+
+    [Fact]
+    public async Task Atualizar_PorVeterinario_DevePermitirPetDeQualquerTutor()
+    {
+        // Arrange
+        var dono = await _factory.CriarClienteAutenticadoAsync();
+        var veterinario = await _factory.CriarClienteAutenticadoAsync("Veterinario");
+        var criado = await (await dono.PostAsJsonAsync("/api/pets", NovoPet("Luna"))).Content.ReadFromJsonAsync<JsonElement>();
+        var id = criado.GetProperty("dados").GetProperty("id").GetInt32();
+
+        // Act
+        var response = await veterinario.PutAsJsonAsync($"/api/pets/{id}", NovoPet("Luna", idade: 5));
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]

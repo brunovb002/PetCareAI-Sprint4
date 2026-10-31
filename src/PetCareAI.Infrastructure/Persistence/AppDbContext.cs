@@ -10,6 +10,7 @@ public class AppDbContext : DbContext
     public DbSet<Pet> Pets => Set<Pet>();
     public DbSet<Consulta> Consultas => Set<Consulta>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
+    public DbSet<AvaliacaoRisco> AvaliacoesRisco => Set<AvaliacaoRisco>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

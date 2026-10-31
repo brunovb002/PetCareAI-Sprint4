@@ -68,6 +68,24 @@ public class ConsultasControllerTests : IClassFixture<CustomWebApplicationFactor
     }
 
     [Fact]
+    public async Task Criar_ParaPetDeOutroTutor_DeveRetornar403EVeterinarioPode()
+    {
+        // Arrange
+        var dono = await _factory.CriarClienteAutenticadoAsync();
+        var outroTutor = await _factory.CriarClienteAutenticadoAsync();
+        var veterinario = await _factory.CriarClienteAutenticadoAsync("Veterinario");
+        var petId = await CriarPetAsync(dono);
+
+        // Act
+        var doOutroTutor = await outroTutor.PostAsJsonAsync("/api/consultas", NovaConsulta(petId));
+        var doVeterinario = await veterinario.PostAsJsonAsync("/api/consultas", NovaConsulta(petId));
+
+        // Assert
+        doOutroTutor.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        doVeterinario.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    [Fact]
     public async Task Criar_ParaPetInexistente_DeveRetornar404()
     {
         // Arrange

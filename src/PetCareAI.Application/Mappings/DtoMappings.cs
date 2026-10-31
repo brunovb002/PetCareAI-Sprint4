@@ -34,6 +34,19 @@ public static class DtoMappings
         Perfil = usuario.Perfil
     };
 
+    public static AvaliacaoRiscoResponseDto ToDto(this AvaliacaoRisco avaliacao) => new()
+    {
+        Id = avaliacao.Id,
+        PetId = avaliacao.PetId,
+        Prioridade = avaliacao.Prioridade,
+        Confianca = avaliacao.Confianca,
+        Recomendacao = avaliacao.Recomendacao,
+        Fatores = avaliacao.ListaDeFatores.ToList(),
+        HistoricoMedico = avaliacao.HistoricoMedico,
+        Sintomas = avaliacao.ListaDeSintomas.ToList(),
+        AvaliadoEm = avaliacao.AvaliadoEm
+    };
+
     public static AtividadeResponseDto ToDto(this RegistroAtividade registro) => new()
     {
         Id = registro.Id,

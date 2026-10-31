@@ -6,20 +6,20 @@ namespace PetCareAI.Application.Interfaces;
 
 public interface IPetService
 {
-    Task<PetResponseDto> CadastrarAsync(CreatePetDto dto, int usuarioId, CancellationToken ct = default);
+    Task<PetResponseDto> CadastrarAsync(CreatePetDto dto, UsuarioAtual usuario, CancellationToken ct = default);
     Task<PetResponseDto> ObterPorIdAsync(int id, CancellationToken ct = default);
     Task<PagedResult<PetResponseDto>> ListarAsync(PetFiltro filtro, CancellationToken ct = default);
-    Task<PetResponseDto> AtualizarAsync(int id, UpdatePetDto dto, int usuarioId, CancellationToken ct = default);
-    Task RemoverAsync(int id, int usuarioId, CancellationToken ct = default);
+    Task<PetResponseDto> AtualizarAsync(int id, UpdatePetDto dto, UsuarioAtual usuario, CancellationToken ct = default);
+    Task RemoverAsync(int id, UsuarioAtual usuario, CancellationToken ct = default);
 }
 
 public interface IConsultaService
 {
-    Task<ConsultaResponseDto> CadastrarAsync(CreateConsultaDto dto, int usuarioId, CancellationToken ct = default);
+    Task<ConsultaResponseDto> CadastrarAsync(CreateConsultaDto dto, UsuarioAtual usuario, CancellationToken ct = default);
     Task<ConsultaResponseDto> ObterPorIdAsync(int id, CancellationToken ct = default);
     Task<PagedResult<ConsultaResponseDto>> ListarAsync(ConsultaFiltro filtro, CancellationToken ct = default);
-    Task<ConsultaResponseDto> AtualizarAsync(int id, UpdateConsultaDto dto, int usuarioId, CancellationToken ct = default);
-    Task RemoverAsync(int id, int usuarioId, CancellationToken ct = default);
+    Task<ConsultaResponseDto> AtualizarAsync(int id, UpdateConsultaDto dto, UsuarioAtual usuario, CancellationToken ct = default);
+    Task RemoverAsync(int id, UsuarioAtual usuario, CancellationToken ct = default);
 }
 
 public interface IAuthService
@@ -36,7 +36,8 @@ public interface IAtividadeService
 
 public interface IAvaliacaoRiscoService
 {
-    Task<AvaliacaoRiscoResponseDto> AvaliarAsync(int petId, AvaliacaoRiscoRequestDto dto, int usuarioId, CancellationToken ct = default);
+    Task<AvaliacaoRiscoResponseDto> AvaliarAsync(int petId, AvaliacaoRiscoRequestDto dto, UsuarioAtual usuario, CancellationToken ct = default);
+    Task<PagedResult<AvaliacaoRiscoResponseDto>> ListarPorPetAsync(int petId, AvaliacaoFiltro filtro, UsuarioAtual usuario, CancellationToken ct = default);
 }
 
 // ---- Portas implementadas pela Infrastructure ----

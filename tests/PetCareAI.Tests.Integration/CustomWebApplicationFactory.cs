@@ -53,14 +53,14 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         });
     }
 
-    /// <summary>Cria um usuário novo, faz login e devolve um HttpClient já com o token JWT.</summary>
-    public async Task<HttpClient> CriarClienteAutenticadoAsync()
+    /// <summary>Cria um usuário novo (Tutor ou Veterinario), faz login e devolve um HttpClient já com o token JWT.</summary>
+    public async Task<HttpClient> CriarClienteAutenticadoAsync(string perfil = "Tutor")
     {
         var client = CreateClient();
         var email = $"tutor-{Guid.NewGuid():N}@petcare.com";
 
         var registro = await client.PostAsJsonAsync("/api/auth/registrar",
-            new { nome = "Tutor Teste", email, senha = "Senha@123" });
+            new { nome = "Tutor Teste", email, senha = "Senha@123", perfil });
         registro.EnsureSuccessStatusCode();
 
         var login = await client.PostAsJsonAsync("/api/auth/login", new { email, senha = "Senha@123" });

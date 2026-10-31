@@ -6,11 +6,20 @@ using PetCareAI.Domain.Exceptions;
 
 namespace PetCareAI.Application.Mappings;
 
+/// <summary>Sintoma reconhecido: termo do dataset (inglês) e gravidade (3 grave, 2 moderado, 1 leve), igual à usada no treino do modelo.</summary>
+public record SintomaTraduzido(string Termo, int Gravidade);
+
+/// <summary>Histórico médico: valor do dataset, descrição para o tutor e se aumenta o risco.</summary>
+public record HistoricoTraduzido(string Termo, string Descricao, bool AumentaRisco);
+
 /// <summary>
 /// Traduz os dados do PetCareAI (em português) para os valores do dataset em que o modelo CLYVO AI foi treinado (em inglês).
 /// </summary>
 public static class ClyvoAiTraducao
 {
+    public const int GravidadeGrave = 3;
+    public const int GravidadeModerada = 2;
+
     private static readonly Dictionary<string, string> Especies = new()
     {
         ["cachorro"] = "Dog", ["cao"] = "Dog", ["cadela"] = "Dog", ["dog"] = "Dog",
@@ -25,32 +34,34 @@ public static class ClyvoAiTraducao
         ["fold escoces"] = "Scottish Fold", ["britanico de pelo curto"] = "British Shorthair"
     };
 
-    private static readonly Dictionary<HistoricoMedico, string> Historicos = new()
+    private static readonly Dictionary<HistoricoMedico, HistoricoTraduzido> Historicos = new()
     {
-        [HistoricoMedico.SemCondicoesPrevias] = "No previous conditions",
-        [HistoricoMedico.Vacinado] = "Vaccinated",
-        [HistoricoMedico.NaoVacinado] = "Not vaccinated",
-        [HistoricoMedico.Alergias] = "Allergies",
-        [HistoricoMedico.ProblemasDentarios] = "Dental issues",
-        [HistoricoMedico.HistoricoDeParasitas] = "Parasite history",
-        [HistoricoMedico.HistoricoDePele] = "Skin conditions history",
-        [HistoricoMedico.CirurgiaRecente] = "Recent surgery",
-        [HistoricoMedico.DoencaRenalPrevia] = "Previous kidney disease",
-        [HistoricoMedico.CardiopatiaPrevia] = "Previous heart condition",
-        [HistoricoMedico.DoencaCronica] = "Chronic illness"
+        [HistoricoMedico.SemCondicoesPrevias] = new("No previous conditions", "sem condições prévias", false),
+        [HistoricoMedico.Vacinado] = new("Vaccinated", "vacinado", false),
+        [HistoricoMedico.NaoVacinado] = new("Not vaccinated", "vacinação não está em dia", true),
+        [HistoricoMedico.Alergias] = new("Allergies", "alergias", false),
+        [HistoricoMedico.ProblemasDentarios] = new("Dental issues", "problemas dentários", false),
+        [HistoricoMedico.HistoricoDeParasitas] = new("Parasite history", "histórico de parasitas", false),
+        [HistoricoMedico.HistoricoDePele] = new("Skin conditions history", "histórico de problemas de pele", false),
+        [HistoricoMedico.CirurgiaRecente] = new("Recent surgery", "cirurgia recente", true),
+        [HistoricoMedico.DoencaRenalPrevia] = new("Previous kidney disease", "doença renal prévia", true),
+        [HistoricoMedico.CardiopatiaPrevia] = new("Previous heart condition", "cardiopatia prévia", true),
+        [HistoricoMedico.DoencaCronica] = new("Chronic illness", "doença crônica", true)
     };
 
-    private static readonly Dictionary<string, string> Sintomas = new()
+    private static readonly Dictionary<string, SintomaTraduzido> Sintomas = new()
     {
-        ["dificuldade para respirar"] = "Difficulty in breathing", ["falta de ar"] = "Difficulty in breathing",
-        ["convulsao"] = "Seizures", ["convulsoes"] = "Seizures", ["paralisia"] = "Paralysis", ["desmaio"] = "Collapse",
-        ["febre"] = "Fever", ["vomito"] = "Vomiting", ["vomitos"] = "Vomiting", ["diarreia"] = "Diarrhea",
-        ["fraqueza"] = "Weakness", ["letargia"] = "Lethargy", ["apatia"] = "Lethargy", ["dor"] = "Pain",
-        ["sangramento"] = "Bleeding", ["inchaco"] = "Swelling", ["desidratacao"] = "Dehydration",
-        ["mancando"] = "Lameness", ["claudicacao"] = "Lameness", ["anemia"] = "Anemia",
-        ["tosse"] = "Coughing", ["espirros"] = "Sneezing", ["espirro"] = "Sneezing",
-        ["perda de apetite"] = "Loss of appetite", ["falta de apetite"] = "Loss of appetite",
-        ["perda de peso"] = "Weight loss", ["queda de pelo"] = "Hair loss", ["coriza"] = "Nasal discharge"
+        ["dificuldade para respirar"] = new("Difficulty in breathing", 3), ["falta de ar"] = new("Difficulty in breathing", 3),
+        ["convulsao"] = new("Seizures", 3), ["convulsoes"] = new("Seizures", 3),
+        ["paralisia"] = new("Paralysis", 3), ["desmaio"] = new("Collapse", 3),
+        ["febre"] = new("Fever", 2), ["vomito"] = new("Vomiting", 2), ["vomitos"] = new("Vomiting", 2),
+        ["diarreia"] = new("Diarrhea", 2), ["fraqueza"] = new("Weakness", 2), ["letargia"] = new("Lethargy", 2),
+        ["apatia"] = new("Lethargy", 2), ["dor"] = new("Pain", 2), ["sangramento"] = new("Bleeding", 2),
+        ["inchaco"] = new("Swelling", 2), ["desidratacao"] = new("Dehydration", 2), ["mancando"] = new("Lameness", 2),
+        ["claudicacao"] = new("Lameness", 2), ["anemia"] = new("Anemia", 2),
+        ["tosse"] = new("Coughing", 1), ["espirros"] = new("Sneezing", 1), ["espirro"] = new("Sneezing", 1),
+        ["perda de apetite"] = new("Loss of appetite", 1), ["falta de apetite"] = new("Loss of appetite", 1),
+        ["perda de peso"] = new("Weight loss", 1), ["queda de pelo"] = new("Hair loss", 1), ["coriza"] = new("Nasal discharge", 1)
     };
 
     public static string Especie(string especie) =>
@@ -62,10 +73,10 @@ public static class ClyvoAiTraducao
     public static string Raca(string raca) =>
         Racas.TryGetValue(Normalizar(raca), out var valor) ? valor : raca.Trim();
 
-    public static string Historico(HistoricoMedico historico) => Historicos[historico];
+    public static HistoricoTraduzido Historico(HistoricoMedico historico) => Historicos[historico];
 
     /// <summary>Procura um termo conhecido dentro do texto (ex.: "febre alta" vira "Fever").</summary>
-    public static string? Sintoma(string sintoma)
+    public static SintomaTraduzido? Sintoma(string sintoma)
     {
         var texto = Normalizar(sintoma);
         return Sintomas

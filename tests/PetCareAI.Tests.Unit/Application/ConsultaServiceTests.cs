@@ -12,6 +12,7 @@ namespace PetCareAI.Tests.Unit.Application;
 public class ConsultaServiceTests
 {
     private const int UsuarioId = 1;
+    private static readonly UsuarioAtual Tutor = new(UsuarioId, "Tutor");
     private static readonly DateTime Data = new(2026, 11, 4, 10, 0, 0);
 
     private readonly Mock<IConsultaRepository> _repositoryMock = new();
@@ -22,6 +23,10 @@ public class ConsultaServiceTests
     public ConsultaServiceTests()
     {
         _service = new ConsultaService(_repositoryMock.Object, _petRepositoryMock.Object, _atividadesMock.Object);
+
+        // Pet 1 pertence ao tutor dos testes
+        _petRepositoryMock.Setup(r => r.ObterPorIdAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Pet("Mimi", "Gato", "Siamês", 2, 4.2, UsuarioId));
     }
 
     private static CreateConsultaDto NovaConsultaDto(int petId = 1) => new()
@@ -37,12 +42,11 @@ public class ConsultaServiceTests
     public async Task CadastrarAsync_ComPetExistente_DeveSalvarERegistrarAtividade()
     {
         // Arrange
-        _petRepositoryMock.Setup(r => r.ExisteAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(true);
         _repositoryMock.Setup(r => r.AdicionarAsync(It.IsAny<Consulta>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Consulta c, CancellationToken _) => c);
 
         // Act
-        var resultado = await _service.CadastrarAsync(NovaConsultaDto(), UsuarioId);
+        var resultado = await _service.CadastrarAsync(NovaConsultaDto(), Tutor);
 
         // Assert
         resultado.PetId.Should().Be(1);
@@ -56,14 +60,43 @@ public class ConsultaServiceTests
     public async Task CadastrarAsync_ComPetInexistente_DeveLancarNotFoundENaoSalvar()
     {
         // Arrange
-        _petRepositoryMock.Setup(r => r.ExisteAsync(42, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _petRepositoryMock.Setup(r => r.ObterPorIdAsync(42, It.IsAny<CancellationToken>())).ReturnsAsync((Pet?)null);
 
         // Act
-        var cadastrar = () => _service.CadastrarAsync(NovaConsultaDto(petId: 42), UsuarioId);
+        var cadastrar = () => _service.CadastrarAsync(NovaConsultaDto(petId: 42), Tutor);
 
         // Assert
         await cadastrar.Should().ThrowAsync<NotFoundException>().WithMessage("Pet*42*");
         _repositoryMock.Verify(r => r.AdicionarAsync(It.IsAny<Consulta>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CadastrarAsync_ParaPetDeOutroTutor_DeveLancarAcessoNegado()
+    {
+        // Arrange
+        var outroTutor = new UsuarioAtual(99, "Tutor");
+
+        // Act
+        var cadastrar = () => _service.CadastrarAsync(NovaConsultaDto(), outroTutor);
+
+        // Assert
+        await cadastrar.Should().ThrowAsync<AcessoNegadoException>();
+        _repositoryMock.Verify(r => r.AdicionarAsync(It.IsAny<Consulta>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CadastrarAsync_PorVeterinario_DevePermitirParaQualquerPet()
+    {
+        // Arrange
+        var veterinario = new UsuarioAtual(50, "Veterinario");
+        _repositoryMock.Setup(r => r.AdicionarAsync(It.IsAny<Consulta>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Consulta c, CancellationToken _) => c);
+
+        // Act
+        var resultado = await _service.CadastrarAsync(NovaConsultaDto(), veterinario);
+
+        // Assert
+        resultado.PetId.Should().Be(1);
     }
 
     [Fact]
@@ -117,7 +150,7 @@ public class ConsultaServiceTests
         _repositoryMock.Setup(r => r.ObterPorIdAsync(4, It.IsAny<CancellationToken>())).ReturnsAsync(consulta);
 
         // Act
-        await _service.RemoverAsync(4, UsuarioId);
+        await _service.RemoverAsync(4, Tutor);
 
         // Assert
         _repositoryMock.Verify(r => r.RemoverAsync(consulta, It.IsAny<CancellationToken>()), Times.Once);
@@ -134,7 +167,7 @@ public class ConsultaServiceTests
         var dto = new UpdateConsultaDto { DataConsulta = Data.AddDays(1), Veterinario = "Dr. Marcos", Motivo = "Retorno", Diagnostico = "Ok" };
 
         // Act
-        var resultado = await _service.AtualizarAsync(3, dto, UsuarioId);
+        var resultado = await _service.AtualizarAsync(3, dto, Tutor);
 
         // Assert
         resultado.Veterinario.Should().Be("Dr. Marcos");
@@ -149,7 +182,7 @@ public class ConsultaServiceTests
         _repositoryMock.Setup(r => r.ObterPorIdAsync(9, It.IsAny<CancellationToken>())).ReturnsAsync((Consulta?)null);
 
         // Act
-        var remover = () => _service.RemoverAsync(9, UsuarioId);
+        var remover = () => _service.RemoverAsync(9, Tutor);
 
         // Assert
         await remover.Should().ThrowAsync<NotFoundException>();

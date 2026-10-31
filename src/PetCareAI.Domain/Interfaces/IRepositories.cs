@@ -8,7 +8,6 @@ public interface IPetRepository
     Task<Pet> AdicionarAsync(Pet pet, CancellationToken ct = default);
     Task<Pet?> ObterPorIdAsync(int id, CancellationToken ct = default);
     Task<PagedResult<Pet>> ListarAsync(PetFiltro filtro, CancellationToken ct = default);
-    Task<bool> ExisteAsync(int id, CancellationToken ct = default);
     Task AtualizarAsync(Pet pet, CancellationToken ct = default);
     Task RemoverAsync(Pet pet, CancellationToken ct = default);
 }
@@ -28,6 +27,12 @@ public interface IUsuarioRepository
     Task<Usuario?> ObterPorIdAsync(int id, CancellationToken ct = default);
     Task<Usuario?> ObterPorEmailAsync(string email, CancellationToken ct = default);
     Task<bool> EmailExisteAsync(string email, CancellationToken ct = default);
+}
+
+public interface IAvaliacaoRiscoRepository
+{
+    Task<AvaliacaoRisco> AdicionarAsync(AvaliacaoRisco avaliacao, CancellationToken ct = default);
+    Task<PagedResult<AvaliacaoRisco>> ListarPorPetAsync(int petId, AvaliacaoFiltro filtro, CancellationToken ct = default);
 }
 
 /// <summary>Histórico de atividades (NoSQL / MongoDB).</summary>

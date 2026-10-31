@@ -12,6 +12,7 @@ namespace PetCareAI.Tests.Unit.Application;
 public class PetServiceTests
 {
     private const int UsuarioId = 1;
+    private static readonly UsuarioAtual Tutor = new(UsuarioId, "Tutor");
 
     private readonly Mock<IPetRepository> _repositoryMock = new();
     private readonly Mock<IRegistroAtividadeRepository> _atividadesMock = new();
@@ -39,7 +40,7 @@ public class PetServiceTests
             .ReturnsAsync((Pet p, CancellationToken _) => p);
 
         // Act
-        var resultado = await _service.CadastrarAsync(NovoPetDto(), UsuarioId);
+        var resultado = await _service.CadastrarAsync(NovoPetDto(), Tutor);
 
         // Assert
         resultado.Nome.Should().Be("Thor");
@@ -58,7 +59,7 @@ public class PetServiceTests
         dto.Peso = 0;
 
         // Act
-        var cadastrar = () => _service.CadastrarAsync(dto, UsuarioId);
+        var cadastrar = () => _service.CadastrarAsync(dto, Tutor);
 
         // Assert
         await cadastrar.Should().ThrowAsync<DomainException>();
@@ -87,7 +88,7 @@ public class PetServiceTests
         var dto = new UpdatePetDto { Nome = "Thor", Especie = "Cachorro", Raca = "Golden Retriever", Idade = 4, Peso = 32 };
 
         // Act
-        var resultado = await _service.AtualizarAsync(1, dto, UsuarioId);
+        var resultado = await _service.AtualizarAsync(1, dto, Tutor);
 
         // Assert
         resultado.Idade.Should().Be(4);
@@ -104,7 +105,7 @@ public class PetServiceTests
         _repositoryMock.Setup(r => r.ObterPorIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync((Pet?)null);
 
         // Act
-        var atualizar = () => _service.AtualizarAsync(5, new UpdatePetDto(), UsuarioId);
+        var atualizar = () => _service.AtualizarAsync(5, new UpdatePetDto(), Tutor);
 
         // Assert
         await atualizar.Should().ThrowAsync<NotFoundException>();
@@ -119,12 +120,45 @@ public class PetServiceTests
         _repositoryMock.Setup(r => r.ObterPorIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync(pet);
 
         // Act
-        await _service.RemoverAsync(2, UsuarioId);
+        await _service.RemoverAsync(2, Tutor);
 
         // Assert
         _repositoryMock.Verify(r => r.RemoverAsync(pet, It.IsAny<CancellationToken>()), Times.Once);
         _atividadesMock.Verify(a => a.RegistrarAsync(
             It.Is<RegistroAtividade>(r => r.Acao == RegistroAtividade.AcaoRemocao), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task AtualizarAsync_PorOutroTutor_DeveLancarAcessoNegadoSemAlterar()
+    {
+        // Arrange
+        var pet = new Pet("Thor", "Cachorro", "SRD", 3, 30, UsuarioId);
+        _repositoryMock.Setup(r => r.ObterPorIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(pet);
+        var outroTutor = new UsuarioAtual(99, "Tutor");
+        var dto = new UpdatePetDto { Nome = "Outro", Especie = "Cachorro", Raca = "SRD", Idade = 3, Peso = 30 };
+
+        // Act
+        var atualizar = () => _service.AtualizarAsync(1, dto, outroTutor);
+
+        // Assert
+        await atualizar.Should().ThrowAsync<AcessoNegadoException>();
+        pet.Nome.Should().Be("Thor");
+        _repositoryMock.Verify(r => r.AtualizarAsync(It.IsAny<Pet>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RemoverAsync_PorVeterinario_DevePermitirMesmoNaoSendoDono()
+    {
+        // Arrange
+        var pet = new Pet("Thor", "Cachorro", "SRD", 3, 30, UsuarioId);
+        _repositoryMock.Setup(r => r.ObterPorIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(pet);
+        var veterinario = new UsuarioAtual(50, "Veterinario");
+
+        // Act
+        await _service.RemoverAsync(1, veterinario);
+
+        // Assert
+        _repositoryMock.Verify(r => r.RemoverAsync(pet, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

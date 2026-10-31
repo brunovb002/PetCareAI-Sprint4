@@ -53,7 +53,20 @@ public class ClyvoAiTraducaoTests
         var traduzido = ClyvoAiTraducao.Sintoma(sintoma);
 
         // Assert
-        traduzido.Should().Be(esperado);
+        traduzido!.Termo.Should().Be(esperado);
+    }
+
+    [Theory]
+    [InlineData("dificuldade para respirar", 3)]
+    [InlineData("febre", 2)]
+    [InlineData("espirros", 1)]
+    public void Sintoma_DeveTrazerAMesmaGravidadeUsadaNoTreinoDoModelo(string sintoma, int gravidade)
+    {
+        // Arrange + Act
+        var traduzido = ClyvoAiTraducao.Sintoma(sintoma);
+
+        // Assert
+        traduzido!.Gravidade.Should().Be(gravidade);
     }
 
     [Theory]

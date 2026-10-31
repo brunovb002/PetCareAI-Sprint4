@@ -19,6 +19,12 @@ public class ConflictException : Exception
     public ConflictException(string message) : base(message) { }
 }
 
+/// <summary>Usuário autenticado sem permissão sobre o recurso (mapeada para HTTP 403).</summary>
+public class AcessoNegadoException : Exception
+{
+    public AcessoNegadoException(string message) : base(message) { }
+}
+
 /// <summary>Credenciais de login inválidas (mapeada para HTTP 401).</summary>
 public class CredenciaisInvalidasException : Exception
 {

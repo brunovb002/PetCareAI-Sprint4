@@ -17,6 +17,9 @@ public class ConsultaFiltro : FiltroPaginado
     public DateTime? DataFim { get; set; }
 }
 
+/// <summary>Paginação do histórico de avaliações de um pet. Sempre da mais recente para a mais antiga.</summary>
+public class AvaliacaoFiltro : FiltroPaginado { }
+
 /// <summary>Filtros do histórico de atividades (MongoDB). Sempre ordenado da mais recente para a mais antiga.</summary>
 public class AtividadeFiltro : FiltroPaginado
 {

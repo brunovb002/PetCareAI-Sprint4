@@ -1,5 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using PetCareAI.Application.DTOs;
+using PetCareAI.Domain.Entities;
 
 namespace PetCareAI.Api.Extensions;
 
@@ -13,4 +15,8 @@ public static class ClaimsPrincipalExtensions
             ? id
             : throw new UnauthorizedAccessException("Token sem identificação de usuário.");
     }
+
+    /// <summary>ID e perfil (Tutor ou Veterinario) do usuário autenticado, usados nas regras de autorização.</summary>
+    public static UsuarioAtual ObterUsuarioAtual(this ClaimsPrincipal user) =>
+        new(user.ObterUsuarioId(), user.FindFirstValue(ClaimTypes.Role) ?? Usuario.PerfilTutor);
 }

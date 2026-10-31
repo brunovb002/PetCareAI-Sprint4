@@ -60,7 +60,7 @@ public class PetsController : ControllerBase
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CriarPet([FromBody] CreatePetDto dto, CancellationToken ct)
     {
-        var pet = await _petService.CadastrarAsync(dto, User.ObterUsuarioId(), ct);
+        var pet = await _petService.CadastrarAsync(dto, User.ObterUsuarioAtual(), ct);
         return CreatedAtRoute(nameof(ObterPet), new { id = pet.Id }, new Recurso<PetResponseDto>(pet, LinksDoPet(pet)));
     }
 
@@ -69,9 +69,10 @@ public class PetsController : ControllerBase
     [ProducesResponseType(typeof(Recurso<PetResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> AtualizarPet(int id, [FromBody] UpdatePetDto dto, CancellationToken ct)
     {
-        var pet = await _petService.AtualizarAsync(id, dto, User.ObterUsuarioId(), ct);
+        var pet = await _petService.AtualizarAsync(id, dto, User.ObterUsuarioAtual(), ct);
         return Ok(new Recurso<PetResponseDto>(pet, LinksDoPet(pet)));
     }
 
@@ -79,9 +80,10 @@ public class PetsController : ControllerBase
     [HttpDelete("{id:int}", Name = nameof(RemoverPet))]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> RemoverPet(int id, CancellationToken ct)
     {
-        await _petService.RemoverAsync(id, User.ObterUsuarioId(), ct);
+        await _petService.RemoverAsync(id, User.ObterUsuarioAtual(), ct);
         return NoContent();
     }
 
@@ -104,23 +106,40 @@ public class PetsController : ControllerBase
 
     /// <summary>
     /// CLYVO AI: avalia a prioridade de cuidado do pet (Alta, Media, Baixa) a partir dos dados cadastrados
-    /// e dos sintomas relatados pelo tutor. O resultado fica registrado no histórico de atividades.
+    /// e dos sintomas relatados pelo tutor, explica os fatores que pesaram e guarda a avaliação no histórico.
+    /// Só o tutor do pet ou um veterinário pode avaliar.
     /// </summary>
     [HttpPost("{id:int}/avaliacao-risco", Name = nameof(AvaliarRisco))]
-    [ProducesResponseType(typeof(Recurso<AvaliacaoRiscoResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(Recurso<AvaliacaoRiscoResponseDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> AvaliarRisco(int id, [FromBody] AvaliacaoRiscoRequestDto dto, CancellationToken ct)
     {
-        var avaliacao = await _avaliacaoRiscoService.AvaliarAsync(id, dto, User.ObterUsuarioId(), ct);
-        return Ok(new Recurso<AvaliacaoRiscoResponseDto>(avaliacao,
-        [
-            new(Url.Link(nameof(ObterPet), new { id })!, "pet", "GET"),
-            new(Url.Link(nameof(ListarConsultasDoPet), new { id })!, "consultas", "GET"),
-            new(Url.Link(nameof(AtividadesController.ListarAtividades), new { entidade = "Pet", entidadeId = id })!, "historico", "GET")
-        ]));
+        var avaliacao = await _avaliacaoRiscoService.AvaliarAsync(id, dto, User.ObterUsuarioAtual(), ct);
+        return CreatedAtRoute(nameof(ListarAvaliacoesDoPet), new { id },
+            new Recurso<AvaliacaoRiscoResponseDto>(avaliacao, LinksDaAvaliacao(id)));
     }
+
+    /// <summary>Histórico de avaliações da CLYVO AI do pet, da mais recente para a mais antiga (paginado).</summary>
+    [HttpGet("{id:int}/avaliacoes", Name = nameof(ListarAvaliacoesDoPet))]
+    [ProducesResponseType(typeof(RecursoPaginado<AvaliacaoRiscoResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListarAvaliacoesDoPet(int id, [FromQuery] AvaliacaoFiltro filtro, CancellationToken ct)
+    {
+        var pagina = await _avaliacaoRiscoService.ListarPorPetAsync(id, filtro, User.ObterUsuarioAtual(), ct);
+        return Ok(pagina.ParaRecursoPaginado(_ => LinksDaAvaliacao(id),
+            p => Url.Link(nameof(ListarAvaliacoesDoPet), new { id, pagina = p, tamanhoPagina = filtro.TamanhoPagina })!));
+    }
+
+    private IReadOnlyList<LinkDto> LinksDaAvaliacao(int petId) =>
+    [
+        new(Url.Link(nameof(ObterPet), new { id = petId })!, "pet", "GET"),
+        new(Url.Link(nameof(ListarAvaliacoesDoPet), new { id = petId })!, "historico", "GET"),
+        new(Url.Link(nameof(ListarConsultasDoPet), new { id = petId })!, "consultas", "GET")
+    ];
 
     private IReadOnlyList<LinkDto> LinksDoPet(PetResponseDto pet) =>
     [
@@ -128,6 +147,7 @@ public class PetsController : ControllerBase
         new(Url.Link(nameof(AtualizarPet), new { id = pet.Id })!, "atualizar", "PUT"),
         new(Url.Link(nameof(RemoverPet), new { id = pet.Id })!, "remover", "DELETE"),
         new(Url.Link(nameof(ListarConsultasDoPet), new { id = pet.Id })!, "consultas", "GET"),
-        new(Url.Link(nameof(AvaliarRisco), new { id = pet.Id })!, "avaliacao-risco", "POST")
+        new(Url.Link(nameof(AvaliarRisco), new { id = pet.Id })!, "avaliacao-risco", "POST"),
+        new(Url.Link(nameof(ListarAvaliacoesDoPet), new { id = pet.Id })!, "avaliacoes", "GET")
     ];
 }

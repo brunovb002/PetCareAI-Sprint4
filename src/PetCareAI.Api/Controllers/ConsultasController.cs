@@ -57,9 +57,10 @@ public class ConsultasController : ControllerBase
     [ProducesResponseType(typeof(Recurso<ConsultaResponseDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> CriarConsulta([FromBody] CreateConsultaDto dto, CancellationToken ct)
     {
-        var consulta = await _consultaService.CadastrarAsync(dto, User.ObterUsuarioId(), ct);
+        var consulta = await _consultaService.CadastrarAsync(dto, User.ObterUsuarioAtual(), ct);
         return CreatedAtRoute(nameof(ObterConsulta), new { id = consulta.Id },
             new Recurso<ConsultaResponseDto>(consulta, LinksDaConsulta(Url, consulta)));
     }
@@ -69,9 +70,10 @@ public class ConsultasController : ControllerBase
     [ProducesResponseType(typeof(Recurso<ConsultaResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> AtualizarConsulta(int id, [FromBody] UpdateConsultaDto dto, CancellationToken ct)
     {
-        var consulta = await _consultaService.AtualizarAsync(id, dto, User.ObterUsuarioId(), ct);
+        var consulta = await _consultaService.AtualizarAsync(id, dto, User.ObterUsuarioAtual(), ct);
         return Ok(new Recurso<ConsultaResponseDto>(consulta, LinksDaConsulta(Url, consulta)));
     }
 
@@ -79,9 +81,10 @@ public class ConsultasController : ControllerBase
     [HttpDelete("{id:int}", Name = nameof(RemoverConsulta))]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> RemoverConsulta(int id, CancellationToken ct)
     {
-        await _consultaService.RemoverAsync(id, User.ObterUsuarioId(), ct);
+        await _consultaService.RemoverAsync(id, User.ObterUsuarioAtual(), ct);
         return NoContent();
     }
 
