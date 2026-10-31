@@ -33,7 +33,7 @@ public class PetsControllerTests : IClassFixture<CustomWebApplicationFactory>
         criar.Headers.Location.Should().NotBeNull();
         var criado = await criar.Content.ReadFromJsonAsync<JsonElement>();
         var id = criado.GetProperty("dados").GetProperty("id").GetInt32();
-        Rels(criado.GetProperty("links")).Should().BeEquivalentTo("self", "atualizar", "remover", "consultas");
+        Rels(criado.GetProperty("links")).Should().BeEquivalentTo("self", "atualizar", "remover", "consultas", "avaliacao-risco");
 
         // READ
         var lido = await client.GetFromJsonAsync<JsonElement>($"/api/pets/{id}");

@@ -34,7 +34,18 @@ public interface IAtividadeService
     Task<PagedResult<AtividadeResponseDto>> ListarAsync(AtividadeFiltro filtro, CancellationToken ct = default);
 }
 
+public interface IAvaliacaoRiscoService
+{
+    Task<AvaliacaoRiscoResponseDto> AvaliarAsync(int petId, AvaliacaoRiscoRequestDto dto, int usuarioId, CancellationToken ct = default);
+}
+
 // ---- Portas implementadas pela Infrastructure ----
+
+/// <summary>Cliente do serviço de IA CLYVO AI (modelo Random Forest em Python).</summary>
+public interface IClyvoAiClient
+{
+    Task<PrevisaoClyvoAi> PreverAsync(EntradaClyvoAi entrada, CancellationToken ct = default);
+}
 
 public interface ISenhaHasher
 {

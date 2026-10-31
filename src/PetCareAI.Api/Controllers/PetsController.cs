@@ -17,11 +17,13 @@ public class PetsController : ControllerBase
 {
     private readonly IPetService _petService;
     private readonly IConsultaService _consultaService;
+    private readonly IAvaliacaoRiscoService _avaliacaoRiscoService;
 
-    public PetsController(IPetService petService, IConsultaService consultaService)
+    public PetsController(IPetService petService, IConsultaService consultaService, IAvaliacaoRiscoService avaliacaoRiscoService)
     {
         _petService = petService;
         _consultaService = consultaService;
+        _avaliacaoRiscoService = avaliacaoRiscoService;
     }
 
     /// <summary>Lista pets com paginação, filtros (nome, especie, usuarioId) e ordenação (id, nome, especie, idade, peso).</summary>
@@ -100,11 +102,32 @@ public class PetsController : ControllerBase
             p => Url.Link(nameof(ListarConsultasDoPet), new { id, pagina = p, tamanhoPagina = filtro.TamanhoPagina })!));
     }
 
+    /// <summary>
+    /// CLYVO AI: avalia a prioridade de cuidado do pet (Alta, Media, Baixa) a partir dos dados cadastrados
+    /// e dos sintomas relatados pelo tutor. O resultado fica registrado no histórico de atividades.
+    /// </summary>
+    [HttpPost("{id:int}/avaliacao-risco", Name = nameof(AvaliarRisco))]
+    [ProducesResponseType(typeof(Recurso<AvaliacaoRiscoResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> AvaliarRisco(int id, [FromBody] AvaliacaoRiscoRequestDto dto, CancellationToken ct)
+    {
+        var avaliacao = await _avaliacaoRiscoService.AvaliarAsync(id, dto, User.ObterUsuarioId(), ct);
+        return Ok(new Recurso<AvaliacaoRiscoResponseDto>(avaliacao,
+        [
+            new(Url.Link(nameof(ObterPet), new { id })!, "pet", "GET"),
+            new(Url.Link(nameof(ListarConsultasDoPet), new { id })!, "consultas", "GET"),
+            new(Url.Link(nameof(AtividadesController.ListarAtividades), new { entidade = "Pet", entidadeId = id })!, "historico", "GET")
+        ]));
+    }
+
     private IReadOnlyList<LinkDto> LinksDoPet(PetResponseDto pet) =>
     [
         new(Url.Link(nameof(ObterPet), new { id = pet.Id })!, "self", "GET"),
         new(Url.Link(nameof(AtualizarPet), new { id = pet.Id })!, "atualizar", "PUT"),
         new(Url.Link(nameof(RemoverPet), new { id = pet.Id })!, "remover", "DELETE"),
-        new(Url.Link(nameof(ListarConsultasDoPet), new { id = pet.Id })!, "consultas", "GET")
+        new(Url.Link(nameof(ListarConsultasDoPet), new { id = pet.Id })!, "consultas", "GET"),
+        new(Url.Link(nameof(AvaliarRisco), new { id = pet.Id })!, "avaliacao-risco", "POST")
     ];
 }

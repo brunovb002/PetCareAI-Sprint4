@@ -9,6 +9,7 @@ public class RegistroAtividade
     public const string AcaoCriacao = "Criacao";
     public const string AcaoAtualizacao = "Atualizacao";
     public const string AcaoRemocao = "Remocao";
+    public const string AcaoAvaliacaoRisco = "AvaliacaoRisco";
 
     public RegistroAtividade(string entidade, string entidadeId, string acao, int? usuarioId, string descricao,
         string? id = null, DateTime? dataHora = null)

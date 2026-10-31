@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using PetCareAI.Application.Interfaces;
 using PetCareAI.Domain.Interfaces;
+using PetCareAI.Infrastructure.Ia;
 using PetCareAI.Infrastructure.Mongo;
 using PetCareAI.Infrastructure.Persistence;
 using PetCareAI.Infrastructure.Repositories;
@@ -42,6 +43,15 @@ public static class DependencyInjection
         {
             services.AddScoped<IRegistroAtividadeRepository, AtividadeDesabilitadaRepository>();
         }
+
+        // IA (CLYVO AI): URL do serviço Python vem da configuração (ClyvoAi__Url na Azure)
+        services.AddHttpClient<IClyvoAiClient, ClyvoAiClient>(http =>
+        {
+            var url = configuration["ClyvoAi:Url"];
+            if (!string.IsNullOrWhiteSpace(url))
+                http.BaseAddress = new Uri(url.TrimEnd('/') + "/");
+            http.Timeout = TimeSpan.FromSeconds(15);
+        });
 
         // Segurança (JWT + hash de senha)
         services.AddOptions<JwtSettings>()

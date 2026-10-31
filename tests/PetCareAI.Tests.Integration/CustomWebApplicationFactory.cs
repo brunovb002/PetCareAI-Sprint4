@@ -9,6 +9,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using PetCareAI.Application.DTOs;
+using PetCareAI.Application.Interfaces;
 using PetCareAI.Domain.Common;
 using PetCareAI.Domain.Entities;
 using PetCareAI.Domain.Interfaces;
@@ -25,6 +27,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     private readonly string _nomeBanco = $"PetCareTests-{Guid.NewGuid()}";
 
     public InMemoryAtividadeRepository Atividades { get; } = new();
+    public FakeClyvoAiClient ClyvoAi { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -44,6 +47,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<IRegistroAtividadeRepository>();
             services.AddSingleton<IRegistroAtividadeRepository>(Atividades);
+
+            services.RemoveAll<IClyvoAiClient>();
+            services.AddSingleton<IClyvoAiClient>(ClyvoAi);
         });
     }
 
@@ -63,6 +69,19 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         return client;
+    }
+}
+
+/// <summary>Substitui o serviço Python CLYVO AI: "high" se houver dificuldade respiratória, senão "low".</summary>
+public class FakeClyvoAiClient : IClyvoAiClient
+{
+    public EntradaClyvoAi? UltimaEntrada { get; private set; }
+
+    public Task<PrevisaoClyvoAi> PreverAsync(EntradaClyvoAi entrada, CancellationToken ct = default)
+    {
+        UltimaEntrada = entrada;
+        var prioridade = entrada.Symptoms.Any(s => s.Contains("breathing")) ? "high" : "low";
+        return Task.FromResult(new PrevisaoClyvoAi(prioridade, new Dictionary<string, double> { [prioridade] = 0.9 }));
     }
 }
 

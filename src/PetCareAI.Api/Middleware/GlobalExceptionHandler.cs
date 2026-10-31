@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using PetCareAI.Application.Exceptions;
 using PetCareAI.Domain.Exceptions;
 
 namespace PetCareAI.Api.Middleware;
@@ -28,6 +29,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             ConflictException => (StatusCodes.Status409Conflict, "Conflito"),
             CredenciaisInvalidasException => (StatusCodes.Status401Unauthorized, "Não autorizado"),
             UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "Não autorizado"),
+            ServicoIndisponivelException => (StatusCodes.Status503ServiceUnavailable, "Serviço indisponível"),
             _ => (StatusCodes.Status500InternalServerError, "Erro interno no servidor")
         };
 
