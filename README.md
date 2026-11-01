@@ -387,5 +387,5 @@ Projeto: **Sprint 4 – Azure DevOps** na organização `dev.azure.com/RM566366`
 Para consultar o Azure SQL pelo Azure Data Studio ou SSMS, libere o seu IP no firewall do servidor:
 
 ```bash
-az sql server firewall-rule create --resource-group rg-petcareai-devops --server sql-petcareai-566366v2 --name MeuIP --start-ip-address <seu-ip> --end-ip-address <seu-ip>
+az sql server firewall-rule create --resource-group rg-petcareai-devops --server sql-petcareai-s4 --name MeuIP --start-ip-address <seu-ip> --end-ip-address <seu-ip>
 ```

@@ -8,10 +8,10 @@ variables:
   azureSubscription: 'sc-azure-petcareai'
   apiProject: 'src/PetCareAI.Api/PetCareAI.Api.csproj'
   artifactName: 'app'
-  webAppName: 'app-petcareai-566366'
-  sqlServer: 'sql-petcareai-566366v2'
+  webAppName: 'app-petcareai-s4'
+  sqlServer: 'sql-petcareai-s4'
   sqlDatabase: 'petcareaidb'
-  clyvoAiUrl: 'https://clyvo-ai-566366.azurewebsites.net'
+  clyvoAiUrl: 'https://clyvo-ai-s4.azurewebsites.net'
   # Secretas, cadastradas em Pipelines > Edit > Variables (com o cadeado):
   # SQL_ADMIN_USER, SQL_ADMIN_PASSWORD e JWT_KEY
 
