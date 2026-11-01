@@ -13,10 +13,10 @@ API RESTful em **ASP.NET Core 8** para clínicas veterinárias e tutores: cadast
 
 | Nome | RM | Turma |
 |---|---|---|
-| Bruno Vinicius Barbosa | RM 566366 | 2TDS |
-| Guilherme de Andrade Martini | RM 566087 | 2TDS |
-| Nathan Gonçalves Pereira Mendes | RM 564666 | 2TDS |
-| Raphael Gomes Mancera | RM 562279 | 2TDS |
+| Bruno Vinicius Barbosa | RM 566366 | 2TDSPX |
+| Guilherme de Andrade Martini | RM 566087 | 2TDSPX |
+| Nathan Gonçalves Pereira Mendes | RM 564666 | 2TDSPX |
+| Raphael Gomes Mancera | RM 562279 | 2TDSPX |
 
 ---
 
@@ -376,11 +376,11 @@ Os dados sensíveis ficam como **variáveis secretas** (cadeado) em *Pipelines �
 
 ### Configuração do projeto no Azure DevOps
 
-1. Criar o projeto **Sprint 4 – Azure DevOps** (Private, Git, Scrum) e convidar o professor com acesso **Basic**.
-2. **Repos → Import** deste repositório.
-3. **Project Settings → Service connections → Azure Resource Manager** com o nome `MyAzureSubscription`.
-4. **Pipelines → New pipeline → Azure Repos Git → Existing YAML file** → `/azure-pipelines.yml`.
-5. Cadastrar as variáveis secretas da tabela acima e executar.
+Projeto: **Sprint 4 – Azure DevOps** na organização `dev.azure.com/RM566366` (Private, Git, Agile), com o professor convidado com acesso **Basic**.
+
+1. **Project Settings → Service connections**: `sc-azure-petcareai` (Azure Resource Manager, assinatura Azure for Students) e `brunovb002` (GitHub).
+2. **Pipelines → New pipeline → GitHub → `brunovb002/PetCareAI-Sprint4` → Existing YAML file** → `/azure-pipelines.yml`. O pipeline fica conectado a este repositório e dispara a cada push na `master`.
+3. Cadastrar as variáveis secretas da tabela acima e executar.
 
 ### Acesso ao banco pela ferramenta gráfica
 

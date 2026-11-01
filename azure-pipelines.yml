@@ -5,7 +5,7 @@ trigger:
 
 variables:
   buildConfiguration: 'Release'
-  azureSubscription: 'MyAzureSubscription'
+  azureSubscription: 'sc-azure-petcareai'
   apiProject: 'src/PetCareAI.Api/PetCareAI.Api.csproj'
   artifactName: 'app'
   webAppName: 'app-petcareai-566366'
