@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Camada de Domínio: entidades, regras de negócio e contratos. Não depende de nenhuma outra camada. -->
+
+</Project>
