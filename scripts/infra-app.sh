@@ -22,9 +22,10 @@ RUNTIME="DOTNETCORE:8.0"
 
 
 # Registrar os Serviços utilizados
-az provider register --namespace Microsoft.Web
-az provider register --namespace Microsoft.Sql
-az provider register --namespace Microsoft.Insights
+az provider register --namespace Microsoft.Web --wait
+az provider register --namespace Microsoft.Sql --wait
+az provider register --namespace Microsoft.Insights --wait
+az provider register --namespace Microsoft.OperationalInsights --wait
 az extension add --name application-insights
 
 # Criação do Grupo de Recursos
