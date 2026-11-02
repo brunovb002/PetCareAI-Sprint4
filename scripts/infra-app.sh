@@ -61,12 +61,12 @@ az monitor app-insights component create \
   --resource-group $RESOURCE_GROUP \
   --application-type web
 
-# Criar o Plano de Serviço e o Serviço de Aplicativo
+# Criar o Plano de Serviço (F1 gratuito: a assinatura não tem cota para B1) e o Serviço de Aplicativo
 az appservice plan create \
   --name $APP_SERVICE_PLAN \
   --resource-group $RESOURCE_GROUP \
   --location $LOCATION_APP \
-  --sku B1 \
+  --sku F1 \
   --is-linux
 
 az webapp create \
