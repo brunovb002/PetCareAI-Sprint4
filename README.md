@@ -378,7 +378,7 @@ Os dados sensíveis ficam como **variáveis secretas** (cadeado) em *Pipelines �
 
 Projeto: **Sprint 4 – Azure DevOps** na organização `dev.azure.com/RM566366` (Private, Git, Agile), com o professor convidado com acesso **Basic**.
 
-1. **Project Settings → Service connections**: `sc-azure-petcareai` (Azure Resource Manager, assinatura Azure for Students) e `brunovb002` (GitHub).
+1. **Project Settings → Service connections**: `sc-azure-petcareai-s4` (Azure Resource Manager, service principal na assinatura Azure do grupo) e `brunovb002` (GitHub).
 2. **Pipelines → New pipeline → GitHub → `brunovb002/PetCareAI-Sprint4` → Existing YAML file** → `/azure-pipelines.yml`. O pipeline fica conectado a este repositório e dispara a cada push na `master`.
 3. Cadastrar as variáveis secretas da tabela acima e executar.
 
