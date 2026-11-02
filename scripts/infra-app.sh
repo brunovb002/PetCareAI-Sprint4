@@ -15,7 +15,8 @@ SQL_ADMIN_PASS=$5
 # Variáveis
 RESOURCE_GROUP="rg-petcareai-devops"
 LOCATION_SQL="centralus"
-LOCATION_APP="eastus"
+LOCATION_APP="westus3"          # única região com cota de App Service na assinatura
+LOCATION_INSIGHTS="eastus"
 APP_SERVICE_PLAN="asp-petcareai-devops"
 APP_INSIGHTS_NAME="appi-petcareai"
 RUNTIME="DOTNETCORE:8.0"
@@ -57,7 +58,7 @@ az sql server firewall-rule create \
 # Criar Application Insights
 az monitor app-insights component create \
   --app $APP_INSIGHTS_NAME \
-  --location $LOCATION_APP \
+  --location $LOCATION_INSIGHTS \
   --resource-group $RESOURCE_GROUP \
   --application-type web
 
