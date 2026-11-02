@@ -12,6 +12,8 @@ variables:
   sqlServer: 'sql-petcareai-s4'
   sqlDatabase: 'petcareaidb'
   clyvoAiUrl: 'https://clyvo-ai-s4.azurewebsites.net'
+  # Jobs rodam no agente self-hosted do pool Default (a organização não tem
+  # agentes Microsoft-hosted liberados para projetos privados)
   # Secretas, cadastradas em Pipelines > Edit > Variables (com o cadeado):
   # SQL_ADMIN_USER, SQL_ADMIN_PASSWORD e JWT_KEY
 
@@ -26,7 +28,7 @@ stages:
     - job: CriarInfra
       displayName: 'Provisionar recursos Azure'
       pool:
-        vmImage: 'ubuntu-latest'
+        name: 'Default'
       steps:
         - task: AzureCLI@2
           displayName: 'Executar script de infraestrutura'
@@ -47,7 +49,7 @@ stages:
     - job: BuildTest
       displayName: 'Compilar e testar API'
       pool:
-        vmImage: 'ubuntu-latest'
+        name: 'Default'
       steps:
         - task: UseDotNet@2
           displayName: 'Instalar .NET 8'
@@ -102,7 +104,7 @@ stages:
     - job: DeployWebApp
       displayName: 'Implantar API'
       pool:
-        vmImage: 'ubuntu-latest'
+        name: 'Default'
       steps:
         - checkout: none
 
