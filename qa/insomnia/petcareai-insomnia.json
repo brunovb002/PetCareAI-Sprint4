@@ -1,0 +1,384 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-11-03T12:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v10.0.0",
+  "resources": [
+    {
+      "_id": "wrk_petcareai",
+      "_type": "workspace",
+      "parentId": null,
+      "scope": "collection",
+      "name": "PetCareAI - Testes de API (Sprint 4)",
+      "description": "Testes automatizados de integração e desempenho da API PetCareAI publicada na Azure."
+    },
+    {
+      "_id": "env_petcareai",
+      "_type": "environment",
+      "parentId": "wrk_petcareai",
+      "name": "Base Environment",
+      "data": {
+        "base_url": "https://app-petcareai-s4.azurewebsites.net",
+        "senha": "Senha@123",
+        "tempo_maximo_ms": 3000
+      }
+    },
+    {
+      "_id": "fld_1",
+      "_type": "request_group",
+      "parentId": "wrk_petcareai",
+      "name": "0. Saúde da API",
+      "metaSortKey": 100
+    },
+    {
+      "_id": "req_200",
+      "_type": "request",
+      "parentId": "fld_1",
+      "name": "[200] Health check (aquecimento)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/health",
+      "metaSortKey": 200,
+      "headers": [],
+      "authentication": {},
+      "body": {},
+      "preRequestScript": "",
+      "afterResponseScript": "insomnia.test(\"Status 200\", () => {\n  insomnia.expect(insomnia.response.code).to.eql(200);\n});\n\ninsomnia.test(\"API e banco Healthy\", () => {\n  const corpo = insomnia.response.json();\n  insomnia.expect(corpo.status).to.eql(\"Healthy\");\n  insomnia.expect(corpo.entries.sqlserver.status).to.eql(\"Healthy\");\n});"
+    },
+    {
+      "_id": "fld_2",
+      "_type": "request_group",
+      "parentId": "wrk_petcareai",
+      "name": "1. Autenticação",
+      "metaSortKey": 300
+    },
+    {
+      "_id": "req_400",
+      "_type": "request",
+      "parentId": "fld_2",
+      "name": "[201] Cadastro de usuário válido",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/registrar",
+      "metaSortKey": 400,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Tutor QA\",\n  \"email\": \"{{ _.email }}\",\n  \"senha\": \"{{ _.senha }}\",\n  \"perfil\": \"Tutor\"\n}"
+      },
+      "preRequestScript": "insomnia.environment.set(\"email\", \"qa.\" + Date.now() + \"@petcare.com\");",
+      "afterResponseScript": "insomnia.test(\"Status 201\", () => {\n  insomnia.expect(insomnia.response.code).to.eql(201);\n});\ninsomnia.test(\"Responde em menos de \" + insomnia.environment.get(\"tempo_maximo_ms\") + \" ms\", () => {\n  insomnia.expect(insomnia.response.responseTime).to.be.below(insomnia.environment.get(\"tempo_maximo_ms\"));\n});\n\ninsomnia.test(\"Não devolve a senha e o perfil é Tutor\", () => {\n  const corpo = insomnia.response.json();\n  insomnia.expect(corpo.perfil).to.eql(\"Tutor\");\n  insomnia.expect(corpo).to.not.have.property(\"senha\");\n  insomnia.expect(corpo).to.not.have.property(\"senhaHash\");\n});"
+    },
+    {
+      "_id": "req_500",
+      "_type": "request",
+      "parentId": "fld_2",
+      "name": "[409] E-mail já cadastrado",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/registrar",
+      "metaSortKey": 500,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Tutor QA\",\n  \"email\": \"{{ _.email }}\",\n  \"senha\": \"{{ _.senha }}\"\n}"
+      },
+      "preRequestScript": "",
+      "afterResponseScript": "insomnia.test(\"Status 409\", () => {\n  insomnia.expect(insomnia.response.code).to.eql(409);\n});\ninsomnia.test(\"Responde em menos de \" + insomnia.environment.get(\"tempo_maximo_ms\") + \" ms\", () => {\n  insomnia.expect(insomnia.response.responseTime).to.be.below(insomnia.environment.get(\"tempo_maximo_ms\"));\n});\n\ninsomnia.test(\"Mensagem de e-mail duplicado\", () => {\n  insomnia.expect(insomnia.response.json().detail).to.eql(\"Já existe um usuário cadastrado com este e-mail.\");\n});"
+    },
+    {
+      "_id": "req_600",
+      "_type": "request",
+      "parentId": "fld_2",
+      "name": "[401] Login com senha incorreta",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/login",
+      "metaSortKey": 600,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.email }}\",\n  \"senha\": \"SenhaErrada1\"\n}"
+      },
+      "preRequestScript": "",
+      "afterResponseScript": "insomnia.test(\"Status 401\", () => {\n  insomnia.expect(insomnia.response.code).to.eql(401);\n});\ninsomnia.test(\"Responde em menos de \" + insomnia.environment.get(\"tempo_maximo_ms\") + \" ms\", () => {\n  insomnia.expect(insomnia.response.responseTime).to.be.below(insomnia.environment.get(\"tempo_maximo_ms\"));\n});\n\ninsomnia.test(\"Mensagem genérica de credenciais inválidas\", () => {\n  insomnia.expect(insomnia.response.json().detail).to.eql(\"E-mail ou senha inválidos.\");\n});"
+    },
+    {
+      "_id": "req_700",
+      "_type": "request",
+      "parentId": "fld_2",
+      "name": "[200] Login com credenciais válidas",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/auth/login",
+      "metaSortKey": 700,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.email }}\",\n  \"senha\": \"{{ _.senha }}\"\n}"
+      },
+      "preRequestScript": "",
+      "afterResponseScript": "insomnia.test(\"Status 200\", () => {\n  insomnia.expect(insomnia.response.code).to.eql(200);\n});\ninsomnia.test(\"Responde em menos de \" + insomnia.environment.get(\"tempo_maximo_ms\") + \" ms\", () => {\n  insomnia.expect(insomnia.response.responseTime).to.be.below(insomnia.environment.get(\"tempo_maximo_ms\"));\n});\n\ninsomnia.test(\"Retorna token Bearer e guarda no ambiente\", () => {\n  const corpo = insomnia.response.json();\n  insomnia.expect(corpo.tipo).to.eql(\"Bearer\");\n  insomnia.expect(corpo.token).to.be.a(\"string\").and.not.empty;\n  insomnia.environment.set(\"token\", corpo.token);\n});"
+    },
+    {
+      "_id": "fld_3",
+      "_type": "request_group",
+      "parentId": "wrk_petcareai",
+      "name": "2. Pets",
+      "metaSortKey": 800
+    },
+    {
+      "_id": "req_900",
+      "_type": "request",
+      "parentId": "fld_3",
+      "name": "[401] Listar pets sem token",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/pets",
+      "metaSortKey": 900,
+      "headers": [],
+      "authentication": {},
+      "body": {},
+      "preRequestScript": "",
+      "afterResponseScript": "insomnia.test(\"Status 401\", () => {\n  insomnia.expect(insomnia.response.code).to.eql(401);\n});\ninsomnia.test(\"Responde em menos de \" + insomnia.environment.get(\"tempo_maximo_ms\") + \" ms\", () => {\n  insomnia.expect(insomnia.response.responseTime).to.be.below(insomnia.environment.get(\"tempo_maximo_ms\"));\n});"
+    },
+    {
+      "_id": "req_1000",
+      "_type": "request",
+      "parentId": "fld_3",
+      "name": "[201] Cadastrar pet",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/pets",
+      "metaSortKey": 1000,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Thor\",\n  \"especie\": \"Cachorro\",\n  \"raca\": \"Labrador\",\n  \"idade\": 11,\n  \"peso\": 28.5\n}"
+      },
+      "preRequestScript": "",
+      "afterResponseScript": "insomnia.test(\"Status 201\", () => {\n  insomnia.expect(insomnia.response.code).to.eql(201);\n});\ninsomnia.test(\"Responde em menos de \" + insomnia.environment.get(\"tempo_maximo_ms\") + \" ms\", () => {\n  insomnia.expect(insomnia.response.responseTime).to.be.below(insomnia.environment.get(\"tempo_maximo_ms\"));\n});\n\ninsomnia.test(\"Pet criado com id, dados e links HATEOAS\", () => {\n  const corpo = insomnia.response.json();\n  insomnia.expect(corpo.dados.id).to.be.a(\"number\");\n  insomnia.expect(corpo.dados.nome).to.eql(\"Thor\");\n  const rels = corpo.links.map(l => l.rel);\n  insomnia.expect(rels).to.include.members([\"self\", \"atualizar\", \"remover\", \"consultas\"]);\n  insomnia.environment.set(\"petId\", corpo.dados.id);\n});"
+    },
+    {
+      "_id": "req_1100",
+      "_type": "request",
+      "parentId": "fld_3",
+      "name": "[400] Cadastrar pet sem nome",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/pets",
+      "metaSortKey": 1100,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"\",\n  \"especie\": \"Cachorro\",\n  \"raca\": \"Labrador\",\n  \"idade\": 11,\n  \"peso\": 28.5\n}"
+      },
+      "preRequestScript": "",
+      "afterResponseScript": "insomnia.test(\"Status 400\", () => {\n  insomnia.expect(insomnia.response.code).to.eql(400);\n});\ninsomnia.test(\"Responde em menos de \" + insomnia.environment.get(\"tempo_maximo_ms\") + \" ms\", () => {\n  insomnia.expect(insomnia.response.responseTime).to.be.below(insomnia.environment.get(\"tempo_maximo_ms\"));\n});\n\ninsomnia.test(\"Erro de validação no campo Nome\", () => {\n  insomnia.expect(insomnia.response.json().errors).to.have.property(\"Nome\");\n});"
+    },
+    {
+      "_id": "req_1200",
+      "_type": "request",
+      "parentId": "fld_3",
+      "name": "[200] Buscar pet por id",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/pets/{{ _.petId }}",
+      "metaSortKey": 1200,
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "authentication": {},
+      "body": {},
+      "preRequestScript": "",
+      "afterResponseScript": "insomnia.test(\"Status 200\", () => {\n  insomnia.expect(insomnia.response.code).to.eql(200);\n});\ninsomnia.test(\"Responde em menos de \" + insomnia.environment.get(\"tempo_maximo_ms\") + \" ms\", () => {\n  insomnia.expect(insomnia.response.responseTime).to.be.below(insomnia.environment.get(\"tempo_maximo_ms\"));\n});\n\ninsomnia.test(\"Retorna o pet cadastrado\", () => {\n  insomnia.expect(insomnia.response.json().dados.id).to.eql(insomnia.environment.get(\"petId\"));\n});"
+    },
+    {
+      "_id": "req_1300",
+      "_type": "request",
+      "parentId": "fld_3",
+      "name": "[200] Atualizar pet",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/api/pets/{{ _.petId }}",
+      "metaSortKey": 1300,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Thor\",\n  \"especie\": \"Cachorro\",\n  \"raca\": \"Labrador\",\n  \"idade\": 12,\n  \"peso\": 30\n}"
+      },
+      "preRequestScript": "",
+      "afterResponseScript": "insomnia.test(\"Status 200\", () => {\n  insomnia.expect(insomnia.response.code).to.eql(200);\n});\ninsomnia.test(\"Responde em menos de \" + insomnia.environment.get(\"tempo_maximo_ms\") + \" ms\", () => {\n  insomnia.expect(insomnia.response.responseTime).to.be.below(insomnia.environment.get(\"tempo_maximo_ms\"));\n});\n\ninsomnia.test(\"Idade e peso atualizados\", () => {\n  const dados = insomnia.response.json().dados;\n  insomnia.expect(dados.idade).to.eql(12);\n  insomnia.expect(dados.peso).to.eql(30);\n});"
+    },
+    {
+      "_id": "req_1400",
+      "_type": "request",
+      "parentId": "fld_3",
+      "name": "[200] Listar pets filtrados e paginados",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/pets?especie=Cachorro&ordenarPor=nome&tamanhoPagina=2",
+      "metaSortKey": 1400,
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "authentication": {},
+      "body": {},
+      "preRequestScript": "",
+      "afterResponseScript": "insomnia.test(\"Status 200\", () => {\n  insomnia.expect(insomnia.response.code).to.eql(200);\n});\ninsomnia.test(\"Responde em menos de \" + insomnia.environment.get(\"tempo_maximo_ms\") + \" ms\", () => {\n  insomnia.expect(insomnia.response.responseTime).to.be.below(insomnia.environment.get(\"tempo_maximo_ms\"));\n});\n\ninsomnia.test(\"Só cachorros, no máximo 2 por página e com paginação\", () => {\n  const corpo = insomnia.response.json();\n  insomnia.expect(corpo.itens.length).to.be.at.most(2);\n  corpo.itens.forEach(i => insomnia.expect(i.dados.especie).to.eql(\"Cachorro\"));\n  insomnia.expect(corpo.paginacao).to.have.property(\"totalItens\");\n  insomnia.expect(corpo.links.map(l => l.rel)).to.include(\"self\");\n});"
+    },
+    {
+      "_id": "fld_4",
+      "_type": "request_group",
+      "parentId": "wrk_petcareai",
+      "name": "3. Consultas",
+      "metaSortKey": 1500
+    },
+    {
+      "_id": "req_1600",
+      "_type": "request",
+      "parentId": "fld_4",
+      "name": "[201] Agendar consulta",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/consultas",
+      "metaSortKey": 1600,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"petId\": {{ _.petId }},\n  \"dataConsulta\": \"2026-11-10T10:00:00\",\n  \"veterinario\": \"Dra. Carla Souza\",\n  \"motivo\": \"Consulta de rotina\",\n  \"diagnostico\": \"\"\n}"
+      },
+      "preRequestScript": "",
+      "afterResponseScript": "insomnia.test(\"Status 201\", () => {\n  insomnia.expect(insomnia.response.code).to.eql(201);\n});\ninsomnia.test(\"Responde em menos de \" + insomnia.environment.get(\"tempo_maximo_ms\") + \" ms\", () => {\n  insomnia.expect(insomnia.response.responseTime).to.be.below(insomnia.environment.get(\"tempo_maximo_ms\"));\n});\n\ninsomnia.test(\"Consulta vinculada ao pet\", () => {\n  const corpo = insomnia.response.json();\n  insomnia.expect(corpo.dados.petId).to.eql(insomnia.environment.get(\"petId\"));\n  insomnia.expect(corpo.links.map(l => l.rel)).to.include(\"pet\");\n});"
+    },
+    {
+      "_id": "req_1700",
+      "_type": "request",
+      "parentId": "fld_4",
+      "name": "[404] Agendar consulta para pet inexistente",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/consultas",
+      "metaSortKey": 1700,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"petId\": 999999,\n  \"dataConsulta\": \"2026-11-10T10:00:00\",\n  \"veterinario\": \"Dra. Carla Souza\",\n  \"motivo\": \"Consulta de rotina\"\n}"
+      },
+      "preRequestScript": "",
+      "afterResponseScript": "insomnia.test(\"Status 404\", () => {\n  insomnia.expect(insomnia.response.code).to.eql(404);\n});\ninsomnia.test(\"Responde em menos de \" + insomnia.environment.get(\"tempo_maximo_ms\") + \" ms\", () => {\n  insomnia.expect(insomnia.response.responseTime).to.be.below(insomnia.environment.get(\"tempo_maximo_ms\"));\n});\n\ninsomnia.test(\"Mensagem de pet não encontrado\", () => {\n  insomnia.expect(insomnia.response.json().detail).to.eql(\"Pet com ID 999999 não foi encontrado(a).\");\n});"
+    },
+    {
+      "_id": "fld_5",
+      "_type": "request_group",
+      "parentId": "wrk_petcareai",
+      "name": "4. Remoção",
+      "metaSortKey": 1800
+    },
+    {
+      "_id": "req_1900",
+      "_type": "request",
+      "parentId": "fld_5",
+      "name": "[204] Remover pet",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/api/pets/{{ _.petId }}",
+      "metaSortKey": 1900,
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "authentication": {},
+      "body": {},
+      "preRequestScript": "",
+      "afterResponseScript": "insomnia.test(\"Status 204\", () => {\n  insomnia.expect(insomnia.response.code).to.eql(204);\n});\ninsomnia.test(\"Responde em menos de \" + insomnia.environment.get(\"tempo_maximo_ms\") + \" ms\", () => {\n  insomnia.expect(insomnia.response.responseTime).to.be.below(insomnia.environment.get(\"tempo_maximo_ms\"));\n});"
+    },
+    {
+      "_id": "req_2000",
+      "_type": "request",
+      "parentId": "fld_5",
+      "name": "[404] Buscar pet removido",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/pets/{{ _.petId }}",
+      "metaSortKey": 2000,
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer {{ _.token }}"
+        }
+      ],
+      "authentication": {},
+      "body": {},
+      "preRequestScript": "",
+      "afterResponseScript": "insomnia.test(\"Status 404\", () => {\n  insomnia.expect(insomnia.response.code).to.eql(404);\n});\ninsomnia.test(\"Responde em menos de \" + insomnia.environment.get(\"tempo_maximo_ms\") + \" ms\", () => {\n  insomnia.expect(insomnia.response.responseTime).to.be.below(insomnia.environment.get(\"tempo_maximo_ms\"));\n});"
+    }
+  ]
+}
