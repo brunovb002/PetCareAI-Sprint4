@@ -72,14 +72,22 @@ Coleção: [`insomnia/petcareai-insomnia.json`](insomnia/petcareai-insomnia.json
 | 4. Remoção | `[204] Remover pet` | remoção |
 | | `[404] Buscar pet removido` | o pet não existe mais |
 
-Todas as requisições, menos o aquecimento, também validam o **desempenho**: a resposta precisa chegar em menos de `tempo_maximo_ms` (3000 ms, definido no ambiente).
+**Resultado da execução: 15/15 requisições aprovadas**, com todas as validações em *PASS*. Todas as requisições, menos o aquecimento, também validam o **desempenho**: a resposta precisa chegar em menos de `tempo_maximo_ms` (3000 ms, definido no ambiente).
 
 ### Como executar
 
 1. Instalar o Insomnia: https://insomnia.rest/download
 2. **Import** → selecionar `qa/insomnia/petcareai-insomnia.json`
-3. Conferir o **Base Environment**: `base_url` aponta para a API na Azure, e `senha` e `tempo_maximo_ms` já vêm preenchidos
-4. Clicar com o botão direito na coleção → **Run** (Collection Runner) → **Run**
+3. Conferir o **Base Environment** (*Base Environment ▾ → Manage Environments*, com o *Table View* desligado). Se o import não trouxer o ambiente (acontece no Scratch Pad), colar:
+   ```json
+   {
+     "base_url": "https://app-petcareai-s4.azurewebsites.net",
+     "senha": "Senha@123",
+     "tempo_maximo_ms": 3000
+   }
+   ```
+   As variáveis `email`, `token` e `petId` são criadas pelos próprios scripts durante a execução
+4. Abrir o **Runner** (botão direito na coleção ou numa pasta → *Run*), manter as 15 requisições selecionadas e clicar em **Run**
 5. Ver o resultado de cada teste na aba **Tests** de cada requisição e no resumo do Runner
 
 Os dados são independentes a cada execução: o e-mail do tutor é gerado com a data e hora (`qa.<timestamp>@petcare.com`), e o pet criado é removido no final. Por isso a coleção pode rodar várias vezes seguidas, inclusive com várias iterações no Runner, como um teste de carga leve.
