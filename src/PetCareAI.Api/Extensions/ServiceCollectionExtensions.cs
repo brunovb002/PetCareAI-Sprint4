@@ -42,7 +42,7 @@ public static class ServiceCollectionExtensions
         {
             c.SwaggerDoc("v1", new OpenApiInfo
             {
-                Title = "PetCareAI API - CLYVO VET",
+                Title = "PetCareAI API - CLYVO VET | Sprint 4",
                 Version = "v1",
                 Description = "API para gestão de pets, consultas veterinárias e histórico de atividades. " +
                               "Faça login em /api/auth/login e clique em 'Authorize' para usar o token JWT."
